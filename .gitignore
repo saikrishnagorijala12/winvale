@@ -30,6 +30,7 @@ dist/
 
 # Your custom ignores
 .winvale
+.virt
 */__pycharm__/*
 test.py
 test2.py
