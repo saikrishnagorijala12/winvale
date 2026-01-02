@@ -1,5 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP
-from utils.timestamp import time_now
+from sqlalchemy import Column, Integer, String, TIMESTAMP, text
 from base import Base 
 
 
@@ -9,5 +8,13 @@ class Role(Base):
     role_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     role_name = Column(String(10), nullable=False)
 
-    created_time = Column(TIMESTAMP(timezone=True), default=time_now)
-    updated_time = Column(TIMESTAMP(timezone=True), default=time_now, onupdate=time_now)
+    created_time = Column(
+        TIMESTAMP(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    updated_time = Column(
+        TIMESTAMP(timezone=True),
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP")
+    )
