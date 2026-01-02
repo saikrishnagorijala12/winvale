@@ -1,0 +1,22 @@
+from datetime import datetime
+from typing import Optional
+from .base import ORMBase
+
+class ProductDimCreate(ORMBase):
+    product_id: int
+    length: Optional[float]
+    width: Optional[float]
+    height: Optional[float]
+    physical_uom: Optional[str]
+    weight_lbs: Optional[float]
+
+class ProductDimRead(ORMBase):
+    dim_id: int
+    product_id: int
+    length: Optional[float]
+    width: Optional[float]
+    height: Optional[float]
+    physical_uom: Optional[str]
+    weight_lbs: Optional[float]
+    created_time: datetime
+    updated_time: datetime
