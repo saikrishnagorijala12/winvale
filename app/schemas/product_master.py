@@ -20,3 +20,10 @@ class ProductMasterRead(ORMBase):
     commercial_list_price: Optional[float]
     created_time: datetime
     updated_time: datetime
+
+class ProductMasterUpdate(ORMBase):
+    item_type: Optional[str] = None
+    item_name: Optional[str] = None
+    manufacturer: Optional[str] = None
+    manufacturer_part_number: Optional[str] = None
+    commercial_list_price: Optional[float] = None

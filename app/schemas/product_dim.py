@@ -20,3 +20,10 @@ class ProductDimRead(ORMBase):
     weight_lbs: Optional[float]
     created_time: datetime
     updated_time: datetime
+
+class ProductDimUpdate(ORMBase):
+    length: Optional[float] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
+    physical_uom: Optional[str] = None
+    weight_lbs: Optional[float] = None

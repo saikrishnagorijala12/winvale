@@ -1,5 +1,7 @@
 from datetime import datetime
 from .base import ORMBase
+from typing import Optional
+
 
 class FileUploadCreate(ORMBase):
     vendor_id: int
@@ -16,3 +18,6 @@ class FileUploadRead(ORMBase):
     s3_saved_filename: str
     file_size: int
     uploaded_at: datetime
+
+class FileUploadUpdate(ORMBase):
+    notes: Optional[str] = None

@@ -23,6 +23,24 @@ class ClientProfileBase(BaseModel):
     signatory_name: Optional[str] = None
     signatory_title: Optional[str] = None
 
+class ClientProfileUpdate(BaseModel):
+    contract_number: Optional[str] = None
+    origin_country: Optional[str] = None
+
+    gsa_proposed_discount: Optional[float] = None
+    q_v_discount: Optional[str] = None
+    additional_concessions: Optional[str] = None
+
+    normal_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[int] = None
+
+    fob_term: Optional[str] = None
+    energy_star_compliance: Optional[str] = None
+
+    client_company_logo: Optional[str] = None
+    signatory_name: Optional[str] = None
+    signatory_title: Optional[str] = None
+
 
 class ClientProfileCreate(ClientProfileBase):
     pass
