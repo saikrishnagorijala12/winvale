@@ -9,9 +9,9 @@ class CPLList(Base):
 
     cpl_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
-    vendor_id = Column(
+    client_id = Column(
         Integer,
-        ForeignKey("vendors.vendor_id", ondelete="RESTRICT"),
+        ForeignKey("client_profile.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 

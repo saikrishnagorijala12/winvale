@@ -1,55 +1,54 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import EmailStr
+from .base import ORMBase
 
 
-class ClientProfileBase(BaseModel):
-    contract_number: str
-    origin_country: Optional[str] = None
+class ClientProfileCreate(ORMBase):
+    company_name: str
+    company_email: EmailStr          # ✅ validated
+    company_phone_no: str
+    company_address: str
+    company_city: str
+    company_state: str
+    company_zip: str
 
-    gsa_proposed_discount: Optional[float] = None
-    q_v_discount: Optional[str] = None
-    additional_concessions: Optional[str] = None
+    contact_officer_name: str
+    contact_officer_email: EmailStr  # ✅ validated
+    contact_officer_phone_no: str
+    contact_officer_address: str
+    contact_officer_city: str
+    contact_officer_state: str
+    contact_officer_zip: str
 
-    normal_delivery_time: Optional[int] = None
-    expedited_delivery_time: Optional[int] = None
-
-    fob_term: Optional[str] = None
-    energy_star_compliance: Optional[str] = None
-
-    vendor_id: int
-
-    client_company_logo: Optional[str] = None
-    signatory_name: Optional[str] = None
-    signatory_title: Optional[str] = None
-
-class ClientProfileUpdate(BaseModel):
-    contract_number: Optional[str] = None
-    origin_country: Optional[str] = None
-
-    gsa_proposed_discount: Optional[float] = None
-    q_v_discount: Optional[str] = None
-    additional_concessions: Optional[str] = None
-
-    normal_delivery_time: Optional[int] = None
-    expedited_delivery_time: Optional[int] = None
-
-    fob_term: Optional[str] = None
-    energy_star_compliance: Optional[str] = None
-
-    client_company_logo: Optional[str] = None
-    signatory_name: Optional[str] = None
-    signatory_title: Optional[str] = None
+    status: int
 
 
-class ClientProfileCreate(ClientProfileBase):
-    pass
-
-
-class ClientProfileRead(ClientProfileBase):
-    vendor_profile_id: int
+class ClientProfileRead(ORMBase):
+    client_id: int
+    company_name: str
+    company_email: EmailStr          
+    company_phone_no: str
+    status: int
     created_time: datetime
     updated_time: datetime
 
-    class Config:
-        orm_mode = True
+
+class ClientProfileUpdate(ORMBase):
+    company_name: Optional[str] = None
+    company_email: Optional[EmailStr] = None       ]
+    company_phone_no: Optional[str] = None
+    company_address: Optional[str] = None
+    company_city: Optional[str] = None
+    company_state: Optional[str] = None
+    company_zip: Optional[str] = None
+
+    contact_officer_name: Optional[str] = None
+    contact_officer_email: Optional[EmailStr] = None  
+    contact_officer_phone_no: Optional[str] = None
+    contact_officer_address: Optional[str] = None
+    contact_officer_city: Optional[str] = None
+    contact_officer_state: Optional[str] = None
+    contact_officer_zip: Optional[str] = None
+
+    status: Optional[int] = None

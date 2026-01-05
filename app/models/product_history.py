@@ -24,9 +24,9 @@ class ProductHistory(Base):
         nullable=False
     )
 
-    vendor_id = Column(
+    client_id = Column(
         Integer,
-        ForeignKey("vendors.vendor_id", ondelete="RESTRICT"),
+        ForeignKey("client_profile.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 
@@ -36,7 +36,7 @@ class ProductHistory(Base):
 
     manufacturer = Column(String(50), nullable=False)
     manufacturer_part_number = Column(String(50), nullable=False)
-    vendor_part_number = Column(String(50))
+    client_part_number = Column(String(50))
 
     sin = Column(String(50))
     country_of_origin = Column(String(50))

@@ -9,6 +9,7 @@ class ProductDimCreate(ORMBase):
     height: Optional[float]
     physical_uom: Optional[str]
     weight_lbs: Optional[float]
+    warranty_period: Optional[int]
 
 class ProductDimRead(ORMBase):
     dim_id: int
@@ -18,6 +19,7 @@ class ProductDimRead(ORMBase):
     height: Optional[float]
     physical_uom: Optional[str]
     weight_lbs: Optional[float]
+    warranty_period: Optional[int]
     created_time: datetime
     updated_time: datetime
 
@@ -27,3 +29,4 @@ class ProductDimUpdate(ORMBase):
     height: Optional[float] = None
     physical_uom: Optional[str] = None
     weight_lbs: Optional[float] = None
+    warranty_period: Optional[int] = None

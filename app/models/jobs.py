@@ -15,9 +15,9 @@ class Job(Base):
         nullable=False
     )
 
-    vendor_id = Column(
+    client_id = Column(
         Integer,
-        ForeignKey("vendors.vendor_id", ondelete="RESTRICT"),
+        ForeignKey("client_profile.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 
