@@ -36,7 +36,7 @@ class ClientProfileRead(ORMBase):
 
 class ClientProfileUpdate(ORMBase):
     company_name: Optional[str] = None
-    company_email: Optional[EmailStr] = None       ]
+    company_email: Optional[EmailStr] = None     
     company_phone_no: Optional[str] = None
     company_address: Optional[str] = None
     company_city: Optional[str] = None
