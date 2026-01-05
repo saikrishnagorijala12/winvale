@@ -3,7 +3,7 @@ from typing import Optional
 from .base import ORMBase
 
 class CPLCreate(ORMBase):
-    vendor_id: int
+    client_id: int
     manufacturer_name: str
     manufacturer_part_number: str
     item_name: str
@@ -11,7 +11,7 @@ class CPLCreate(ORMBase):
 
 class CPLRead(ORMBase):
     cpl_id: int
-    vendor_id: int
+    client_id: int
     manufacturer_name: str
     item_name: str
     commercial_list_price: Optional[float]

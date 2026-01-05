@@ -9,10 +9,10 @@ from sqlalchemy import (
 )
 from base import Base
 
-class ClientProfile(Base):
-    __tablename__ = "client_profiles"
+class ClientContracts(Base):
+    __tablename__ = "client_contracts"
 
-    vendor_profile_id = Column(
+    client_profile_id = Column(
         Integer, primary_key=True, index=True, autoincrement=True
     )
 
@@ -29,9 +29,9 @@ class ClientProfile(Base):
     fob_term = Column(String(50))
     energy_star_compliance = Column(String(50))
 
-    vendor_id = Column(
+    client_id = Column(
         Integer,
-        ForeignKey("vendors.vendor_id", ondelete="RESTRICT"),
+        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 

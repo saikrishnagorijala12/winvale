@@ -10,20 +10,29 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from base import Base
 
-class Vendor(Base):
-    __tablename__ = "vendors"
+class ClientProfile(Base):
+    __tablename__ = "clients_profiles"
 
-    vendor_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    client_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
     company_name = Column(String(30), nullable=False)
     company_email = Column(String(50), nullable=False, unique=True)
     company_phone_no = Column(String(15), nullable=False, unique=True)
-    company_address = Column(JSONB, nullable=False)
+    company_address = Column(String(50), nullable=False)
+    company_city = Column(String(50), nullable=False)
+    company_state = Column(String(50), nullable=False)
+    company_zip = Column(String(7), nullable=False)
+
+
 
     contact_officer_name = Column(String(30), nullable=False)
     contact_officer_email = Column(String(50), nullable=False, unique=True)
     contact_officer_phone_no = Column(String(15), nullable=False, unique=True)
-    contact_officer_address = Column(JSONB, nullable=False)
+    contact_officer_address = Column(String(50), nullable=False)
+    contact_officer_city = Column(String(50), nullable=False)
+    contact_officer_state = Column(String(50), nullable=False)
+    contact_officer_zip = Column(String(7), nullable=False)
+
 
     status = Column(
         Integer,
