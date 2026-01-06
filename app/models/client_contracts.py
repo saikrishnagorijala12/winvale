@@ -7,7 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     text
 )
-from base import Base
+from app.models.base import Base
 
 class ClientContracts(Base):
     __tablename__ = "client_contracts"

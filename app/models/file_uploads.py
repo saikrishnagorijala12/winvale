@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column, Integer, BigInteger, Text,
     TIMESTAMP, ForeignKey, text
 )
-from base import Base
+from app.models.base import Base
 
 class FileUpload(Base):
     __tablename__ = "file_uploads"
@@ -17,7 +17,7 @@ class FileUpload(Base):
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profile.client_id", ondelete="RESTRICT"),
+        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 

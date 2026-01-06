@@ -27,10 +27,11 @@ def create_user(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if payload.email != current_user["email"]:
+    # if payload.email != current_user["email"]:
+    if current_user["email"] != "gujjasreya2000@gmail.com":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email mismatch"
+            detail="Admin Needed"
         )
 
     try:
