@@ -50,6 +50,7 @@ jobs:
           USER_POOL_ID: eu-north-1_6otZrR1l5
           APP_CLIENT_ID: 7hk1q4rodihotqbjr8mrqsebmv
         run: |
+          export PYTHONPATH=.
           pytest -v
 
       - name: Build Docker image
