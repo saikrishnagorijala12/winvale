@@ -8,7 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     text
 )
-from base import Base
+from app.models.base import Base
 
 class ProductMaster(Base):
     __tablename__ = "product_master"
@@ -17,7 +17,7 @@ class ProductMaster(Base):
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profile.client_id", ondelete="RESTRICT"),
+        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 

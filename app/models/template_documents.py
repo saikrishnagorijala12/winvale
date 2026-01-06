@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Text, TIMESTAMP, text
-from base import Base
+from app.models.base import Base
 
 class TemplateDocument(Base):
     __tablename__ = "template_documents"

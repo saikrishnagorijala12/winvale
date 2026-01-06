@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column, Integer, Text, Numeric,
     TIMESTAMP, ForeignKey, text
 )
-from base import Base
+from app.models.base import Base
 
 class CPLList(Base):
     __tablename__ = "cpl_list"
@@ -11,7 +11,7 @@ class CPLList(Base):
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profile.client_id", ondelete="RESTRICT"),
+        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 

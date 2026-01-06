@@ -8,10 +8,10 @@ from sqlalchemy import (
     text
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from base import Base
+from app.models.base import Base
 
 class ClientProfile(Base):
-    __tablename__ = "clients_profiles"
+    __tablename__ = "client_profiles"
 
     client_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
