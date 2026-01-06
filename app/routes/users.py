@@ -19,6 +19,15 @@ def get_my_status(
 
     return u.get_user_status_by_email(db, email)
 
+@router.get("")
+def get_user_current(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    email = current_user["email"]
+
+    return u.get_current_user_by_email(db, email)
+
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -48,6 +57,18 @@ def create_user(
             status_code=status.HTTP_409_CONFLICT,
             detail="User already exists"
         )
+    
+@router.put("", response_model=UserRead)
+def replace_current_user(
+    payload: UserCreate,   
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    email = current_user["email"]
+
+    return u.replace_user_by_email(db, email, payload)
+
+
 
 
 @router.patch("/{user_id}/approve")

@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.users import User
+from datetime import datetime, timezone
 
 
 def get_user_status_by_email(db: Session, email: str):
@@ -17,10 +18,61 @@ def get_user_status_by_email(db: Session, email: str):
         }
 
     return {
+
         "registered": True,
         "is_active": user.is_active,
         "role_id": user.role_id
     }
+
+
+def get_current_user_by_email(db: Session, email: str):
+    """
+    Business logic only.
+    No FastAPI, no Depends, no HTTP.
+    """
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        return {
+            "Response Type": "Error",
+            "Message": "User Not Found"
+        }
+
+    return {
+        
+        "Full Name" : user.name,
+        "Email Address" : user.email,
+        "Contact Number" : user.phone_no,
+        "Active Status" : user.is_active,
+        "Role":user.role_id
+    }
+
+
+def replace_user_by_email(db: Session, *, name: str, email: str, phone_no: str, role_id: int):
+    """
+    FULL replacement of user data.
+    PUT semantics.
+    """
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        return {
+            "Response Type": "Error",
+            "Message": "User Not Found"
+        }
+
+    user.name = name
+    user.email = email
+    user.phone_no = phone_no
+    user.role_id = role_id
+   
+    db.commit()
+    db.refresh(user)
+
+    return user
+
 
 
 class UserAlreadyExistsError(Exception):
