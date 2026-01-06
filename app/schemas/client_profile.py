@@ -14,7 +14,7 @@ class ClientProfileCreate(ORMBase):
     company_zip: str
 
     contact_officer_name: str
-    contact_officer_email: EmailStr  # ✅ validated
+    contact_officer_email: EmailStr
     contact_officer_phone_no: str
     contact_officer_address: str
     contact_officer_city: str

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, ForeignKey, text
+from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, ForeignKey, text, Boolean
 from base import Base
 
 class User(Base):
@@ -8,6 +8,8 @@ class User(Base):
     name = Column(String(30), nullable=False)
     email = Column(String(50), nullable=False, unique=True)
     phone_no = Column(String(15), nullable=False, unique=True)
+    is_active = Column(Boolean, nullable=False, default=False)
+
 
     role_id = Column(
         Integer,
