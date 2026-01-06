@@ -1,6 +1,4 @@
-# # from app.routes.test import router as test_routes
-# # from app.routes.test2 import router as test2_routes
+from app.routes.users import router as user_routes
 
-# def register_routes(app):
-#     # app.include_router(test_routes, prefix="")
-#     # app.include_router(test2_routes, prefix="")
+def register_routes(app):
+    app.include_router(user_routes)
