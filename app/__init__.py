@@ -25,7 +25,10 @@ def get_db_config():
 def create_app():
     global db_engine,SessionLocal
     load_dotenv()
-    app = FastAPI()
+    app = FastAPI(
+        title= "Winvale GSA Automation",
+        version="1.0.1"
+    )
 
     DB_URL = get_db_config()
     tmp_engine = create_engine(DB_URL)
