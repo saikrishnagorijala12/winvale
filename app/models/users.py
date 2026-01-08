@@ -9,6 +9,8 @@ class User(Base):
     email = Column(String(50), nullable=False, unique=True)
     phone_no = Column(String(15), nullable=False, unique=True)
     is_active = Column(Boolean, nullable=False, default=False)
+    cognito_sub = Column(String(50), unique=True, nullable=False)
+
 
 
     role_id = Column(

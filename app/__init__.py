@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 
 from app.models.base import Base
+from app.utils.db_init import seed_static_data
 
 db_engine = None
 SessionLocal = None
@@ -34,7 +35,6 @@ def create_app():
     tmp_engine = create_engine(DB_URL)
     try:
         with tmp_engine.begin() as conn:
-            # create schema 'dev' if it doesn't exist
             conn.execute(text("CREATE SCHEMA IF NOT EXISTS dev"))
     finally:
         tmp_engine.dispose()
@@ -42,6 +42,9 @@ def create_app():
     db_engine = create_engine(DB_URL, connect_args={"options": "-c search_path=dev"})
     SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=db_engine)
     Base.metadata.create_all(bind=db_engine)
+    seed_static_data(SessionLocal())
+
+
     
     from .apirouter import register_routes
     register_routes(app)

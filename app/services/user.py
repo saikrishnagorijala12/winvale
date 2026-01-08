@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
+from fastapi import Depends
 from app.models.users import User
 from datetime import datetime, timezone
+from app.auth.dependencies import get_current_user
+from app.database import get_db
 
 
 def get_user_status_by_email(db: Session, email: str):
@@ -125,5 +128,30 @@ def approve_user_service(db: Session, *, user_id: int):
     user.is_active = True
     db.commit()
     db.refresh(user)
+
+    return user
+
+DEFAULT_ROLE_ID = 2 
+
+def get_or_create_user(
+    token_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(
+        User.cognito_sub == token_user["sub"]
+    ).first()
+
+    if not user:
+        user = User(
+            name=token_user["name"],
+            email=token_user["email"],
+            phone_no="NA",
+            role_id=DEFAULT_ROLE_ID,
+            is_active=False,
+            cognito_sub=token_user["sub"]
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     return user
