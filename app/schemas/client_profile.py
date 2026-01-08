@@ -29,6 +29,9 @@ class ClientProfileRead(ORMBase):
     company_name: str
     company_email: EmailStr          
     company_phone_no: str
+    contact_officer_name: str
+    contact_officer_email: EmailStr
+    contact_officer_phone_no: str
     status: int
     created_time: datetime
     updated_time: datetime

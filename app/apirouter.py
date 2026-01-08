@@ -1,6 +1,8 @@
 from app.routes.users import router as user_routes
-from app.routes.health import router as health
+from app.routes.health import router as health_route
+from app.routes.clients import router as client_routes
 
 def register_routes(app):
     app.include_router(user_routes)
-    app.include_router(health)
+    app.include_router(health_route)
+    app.include_router(client_routes)
