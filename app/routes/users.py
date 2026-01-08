@@ -10,6 +10,10 @@ import app.services.user as u
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
+@router.get("/me")
+def get_me(user=Depends(u.get_or_create_user)):
+    return user
+
 @router.get("/me/status")
 def get_my_status(
     current_user=Depends(get_current_user),

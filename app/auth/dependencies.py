@@ -31,7 +31,10 @@ def get_current_user(
             detail="Invalid or expired token"
         )
     return {
+        "name" : claims.get("name"),
         "email": claims.get("email"),
         "sub": claims.get("sub"),
         "groups": claims.get("cognito:groups", [])
     }
+
+
