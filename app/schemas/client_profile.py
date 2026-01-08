@@ -6,7 +6,7 @@ from .base import ORMBase
 
 class ClientProfileCreate(ORMBase):
     company_name: str
-    company_email: EmailStr          # ✅ validated
+    company_email: EmailStr        
     company_phone_no: str
     company_address: str
     company_city: str
