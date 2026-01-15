@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, ForeignKey, text, Boolean
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "users"
@@ -7,7 +8,7 @@ class User(Base):
     user_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(30), nullable=False)
     email = Column(String(50), nullable=False, unique=True)
-    phone_no = Column(String(15), nullable=False, unique=True)
+    phone_no = Column(String(15), unique=True)
     is_active = Column(Boolean, nullable=False, default=False)
     cognito_sub = Column(String(50), unique=True, nullable=False)
 
@@ -29,3 +30,5 @@ class User(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
     )
+
+    role = relationship("Role")

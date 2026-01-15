@@ -50,7 +50,7 @@ def create_user(
             name=payload.name,
             email=str(payload.email),
             phone_no=payload.phone_no,
-            role_id=payload.role_id,
+            role_name=payload.role_name,
         )
 
     except u.UserAlreadyExistsError:
@@ -72,10 +72,8 @@ def update_user(
         name=payload.name,
         email=email,
         phone_no=payload.phone_no,
-        role_id=payload.role_id,
+        role_name=payload.role_name,
     )
-
-
 
 @router.patch("/{user_id}/approve")
 def approve_user(
@@ -85,12 +83,7 @@ def approve_user(
 ):
     email = current_user["email"]
     require_admin(db, email)
-    # if "admin" not in current_user.get("groups", []):
-    #     raise HTTPException(
-    #  b       status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Admin only"
-    #     )
-
+   
 
     try:
         u.approve_user_service(db, user_id=user_id)
@@ -101,3 +94,37 @@ def approve_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+
+
+@router.patch("/{user_id}/approve")
+def approve_user(
+    user_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    email = current_user["email"]
+    require_admin(db, email)
+   
+
+    try:
+        u.approve_user_service(db, user_id=user_id)
+        return {"message": "User approved"}
+
+    except u.UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+@router.get("/all")
+def get_all_users(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not require_admin(db, current_user["email"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+ 
+    return u.get_all_users(db)
