@@ -6,6 +6,7 @@ from app.schemas.user import UserCreate, UserRead
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 import app.services.user as u
+from app.utils.admin_check import require_admin
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -24,7 +25,7 @@ def get_my_status(
     return u.get_user_status_by_email(db, email)
 
 @router.get("")
-def get_user_current(
+def get_current_user_by_email(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -40,18 +41,14 @@ def create_user(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # if payload.email != current_user["email"]:
-    if current_user["email"] != "gujjasreya2000@gmail.com":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin Needed"
-        )
+    email = current_user["email"]
+    require_admin(db, email)
 
     try:
         return u.create_user_service(
             db,
             name=payload.name,
-            email=payload.email,
+            email=str(payload.email),
             phone_no=payload.phone_no,
             role_id=payload.role_id,
         )
@@ -62,16 +59,21 @@ def create_user(
             detail="User already exists"
         )
     
-@router.put("", response_model=UserRead)
-def replace_current_user(
-    payload: UserCreate,   
+router.put("", response_model=UserRead)
+def update_user(
+    payload: UserCreate,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    email = current_user["email"]
+    email = str(current_user["email"])
 
-    return u.replace_user_by_email(db, email, payload)
-
+    return u.replace_user_by_email(
+        db,
+        name=payload.name,
+        email=email,
+        phone_no=payload.phone_no,
+        role_id=payload.role_id,
+    )
 
 
 
@@ -81,11 +83,14 @@ def approve_user(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if "admin" not in current_user.get("groups", []):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin only"
-        )
+    email = current_user["email"]
+    require_admin(db, email)
+    # if "admin" not in current_user.get("groups", []):
+    #     raise HTTPException(
+    #  b       status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Admin only"
+    #     )
+
 
     try:
         u.approve_user_service(db, user_id=user_id)

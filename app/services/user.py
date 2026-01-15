@@ -69,7 +69,7 @@ def replace_user_by_email(db: Session, *, name: str, email: str, phone_no: str, 
     user.name = name
     user.email = email
     user.phone_no = phone_no
-    user.role_id = role_id
+    # user.role_id = role_id
    
     db.commit()
     db.refresh(user)

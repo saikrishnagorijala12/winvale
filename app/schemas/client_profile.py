@@ -13,17 +13,20 @@ class ClientProfileCreate(ORMBase):
     company_state: str
     company_zip: str
 
-    contact_officer_name: str
-    contact_officer_email: EmailStr
-    contact_officer_phone_no: str
-    contact_officer_address: str
-    contact_officer_city: str
-    contact_officer_state: str
-    contact_officer_zip: str
+    contact_officer_name: Optional[str]
+    contact_officer_email: Optional[EmailStr]
+    contact_officer_phone_no: Optional[str]
+    contact_officer_address: Optional[str]
+    contact_officer_city: Optional[str]
+    contact_officer_state: Optional[str]
+    contact_officer_zip: Optional[str]
 
     status: int
 
+    company_name: str
+    company_name: str
 
+    company_name: str
 class ClientProfileRead(ORMBase):
     client_id: int
     company_name: str

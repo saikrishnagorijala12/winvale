@@ -24,10 +24,10 @@ class UserRead(ORMBase):
     updated_time: datetime
 
 
-class UserUpdate(ORMBase):
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone_no: Optional[str] = None
-    is_active: Optional[bool] = False
-    cognito_sub : Optional[str]
-    role_id: Optional[int] = None
+# class UserUpdate(ORMBase):
+#     name: Optional[str] = None
+#     email: Optional[EmailStr] = None
+#     phone_no: Optional[str] = None
+#     is_active: Optional[bool] = False
+#     cognito_sub : Optional[str]
+#     role_id: Optional[int] = None
