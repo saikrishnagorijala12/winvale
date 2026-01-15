@@ -3,6 +3,8 @@ from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
 from app.schemas.client_profile import ClientProfileCreate
 from app.schemas.client_contract import ClientContractCreate
+from app.models.client_profiles import ClientProfile
+from app.schemas.client_profile import ClientProfileUpdate
 
 def get_all_clients(db: Session):
     return db.query(ClientProfile).all()
@@ -113,3 +115,34 @@ def replace_contract_by_client_id(
     db.refresh(contract)
 
     return contract
+
+def update_client(
+    *,
+    db: Session,
+    client_id: int,
+    data: ClientProfileUpdate
+):
+    """
+    Update an existing client profile.
+    Business logic only.
+    """
+
+    client = (
+        db.query(ClientProfile)
+        .filter(ClientProfile.client_id == client_id)
+        .first()
+    )
+
+    if not client:
+        return None
+
+    # Update only fields that were actually sent
+    update_data = data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(client, field, value)
+
+    db.commit()
+    db.refresh(client)
+
+    return client

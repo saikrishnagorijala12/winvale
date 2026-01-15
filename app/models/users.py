@@ -7,7 +7,7 @@ class User(Base):
     user_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(30), nullable=False)
     email = Column(String(50), nullable=False, unique=True)
-    phone_no = Column(String(15), nullable=False, unique=True)
+    phone_no = Column(String(15), unique=True)
     is_active = Column(Boolean, nullable=False, default=False)
     cognito_sub = Column(String(50), unique=True, nullable=False)
 

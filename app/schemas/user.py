@@ -7,7 +7,7 @@ from pydantic import EmailStr
 class UserCreate(ORMBase):
     name: str
     email: EmailStr
-    phone_no: str
+    phone_no: Optional[str]
     is_active: Optional[bool] = False
     cognito_sub : str
     role_id: int

@@ -25,13 +25,13 @@ class ClientProfile(Base):
 
 
 
-    contact_officer_name = Column(String(30), nullable=False)
-    contact_officer_email = Column(String(50), nullable=False, unique=True)
-    contact_officer_phone_no = Column(String(15), nullable=False, unique=True)
-    contact_officer_address = Column(String(50), nullable=False)
-    contact_officer_city = Column(String(50), nullable=False)
-    contact_officer_state = Column(String(50), nullable=False)
-    contact_officer_zip = Column(String(7), nullable=False)
+    contact_officer_name = Column(String(30))
+    contact_officer_email = Column(String(50), unique=True)
+    contact_officer_phone_no = Column(String(15), unique=True)
+    contact_officer_address = Column(String(50))
+    contact_officer_city = Column(String(50))
+    contact_officer_state = Column(String(50))
+    contact_officer_zip = Column(String(7))
 
 
     status = Column(

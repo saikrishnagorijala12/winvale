@@ -145,7 +145,7 @@ def get_or_create_user(
         user = User(
             name=token_user["name"],
             email=token_user["email"],
-            phone_no="NA",
+            phone_no=None,
             role_id=DEFAULT_ROLE_ID,
             is_active=False,
             cognito_sub=token_user["sub"]
@@ -155,3 +155,6 @@ def get_or_create_user(
         db.refresh(user)
 
     return user
+
+def get_all_users(db: Session):
+    return db.query(User).all()

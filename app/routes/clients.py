@@ -107,3 +107,25 @@ def replace_client_contract(
         )
 
     return contract
+
+
+@router.put("/{client_id}", response_model=ClientProfileRead)
+def edit_client(
+    client_id: int,
+    payload: ClientProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Update an existing client profile.
+    """
+    require_admin(db, current_user["email"])
+    client = cps.update_client(db=db, client_id=client_id, data=payload)
+ 
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+ 
+    return client
