@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.models.users import User
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 import app.services.user as u
@@ -59,9 +59,9 @@ def create_user(
             detail="User already exists"
         )
     
-router.put("", response_model=UserRead)
+@router.put("", response_model=UserRead)
 def update_user(
-    payload: UserCreate,
+    payload: UserUpdate,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -76,46 +76,31 @@ def update_user(
     )
 
 @router.patch("/{user_id}/approve")
-def approve_user(
+def approve_or_reject_user(
     user_id: int,
+    action: str = Query(..., regex="^(approve|reject)$"),
     current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     email = current_user["email"]
     require_admin(db, email)
-   
-
+ 
     try:
-        u.approve_user_service(db, user_id=user_id)
-        return {"message": "User approved"}
-
+        if action == "approve":
+            u.approve_user_service(db, user_id=user_id)
+            return {"message": "User approved"}
+ 
+        if action == "reject":
+            u.reject_user_service(db, user_id=user_id)
+            return {"message": "User rejected"}
+ 
     except u.UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="User not found",
         )
 
 
-@router.patch("/{user_id}/approve")
-def approve_user(
-    user_id: int,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    email = current_user["email"]
-    require_admin(db, email)
-   
-
-    try:
-        u.approve_user_service(db, user_id=user_id)
-        return {"message": "User approved"}
-
-    except u.UserNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
 @router.get("/all")
 def get_all_users(
     current_user=Depends(get_current_user),
@@ -128,3 +113,13 @@ def get_all_users(
         )
  
     return u.get_all_users(db)
+
+
+@router.delete("/{user_id}", response_model=UserRead)
+def delete_user(
+    user_id : int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_admin(db, current_user["email"])
+    return u.delete_user(db, user_id)

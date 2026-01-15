@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
@@ -7,10 +7,6 @@ from app.schemas.client_profile import (
     ClientProfileRead,
     ClientProfileCreate,
     ClientProfileUpdate,
-)
-from app.schemas.client_contract import (
-    ClientContractRead,
-    ClientContractCreate,
 )
 from app.services import clients as cps
 from app.utils.admin_check import require_admin
@@ -89,92 +85,80 @@ def update_client(
     return client
 
 
+# @router.patch("/{client_id}/approve", response_model=ClientProfileRead)
+# def approve_client(
+#     client_id: int,
+#     current_user=Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     require_admin(db, current_user["email"])
 
-@router.get(
-    "/profiles",
-    response_model=list[ClientContractRead],
-)
-def get_all_client_contracts(
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return cps.get_all_client_contracts(db)
+#     try:
+#         return cps.change_client_status(
+#             db=db,
+#             client_id=client_id,
+#             status_name="ACTIVE",
+#         )
+#     except cps.ClientNotFoundError:
+#         raise HTTPException(status_code=404, detail="Client not found")
+#     except ValueError as e:
+#         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get(
-    "/profiles/{client_id}",
-    response_model=ClientContractRead,
-)
-def get_client_contract(
+# @router.patch("/{client_id}/reject", response_model=ClientProfileRead)
+# def reject_client(
+#     client_id: int,
+#     current_user=Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     require_admin(db, current_user["email"])
+
+#     try:
+#         return cps.change_client_status(
+#             db=db,
+#             client_id=client_id,
+#             status_name="INACTIVE",
+#         )
+#     except cps.ClientNotFoundError:
+#         raise HTTPException(status_code=404, detail="Client not found")
+#     except ValueError as e:
+#         raise HTTPException(status_code=400, detail=str(e))
+
+
+
+@router.patch("/{client_id}/approve")
+def approve_or_reject_client(
     client_id: int,
+    action: str = Query(..., regex="^(approve|reject)$"),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    contract = cps.get_contract_by_client_id(db, client_id)
-    if not contract:
-        raise HTTPException(status_code=404, detail="Client contract not found")
-    return contract
-
-
-@router.put(
-    "/profiles/{client_id}",
-    response_model=ClientContractRead,
-)
-def replace_client_contract(
-    client_id: int,
-    payload: ClientContractCreate,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    require_admin(db, current_user["email"])
-
-    contract = cps.replace_contract_by_client_id(
-        db=db,
-        client_id=client_id,
-        payload=payload,
-    )
-
-    if not contract:
-        raise HTTPException(status_code=404, detail="Client contract not found")
-
-    return contract
-
-
-@router.patch("/{client_id}/approve", response_model=ClientProfileRead)
-def approve_client(
-    client_id: int,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    require_admin(db, current_user["email"])
-
+    email = current_user["email"]
+    require_admin(db, email)
+ 
     try:
-        return cps.change_client_status(
-            db=db,
-            client_id=client_id,
-            status_name="ACTIVE",
-        )
+        if action == "approve":
+            cps.approve_client(db, client_id=client_id)
+            return {"message": "Client approved"}
+ 
+        if action == "reject":
+            cps.reject_client(db, client_id=client_id)
+            return {"message": "Client rejected"}
+ 
     except cps.ClientNotFoundError:
-        raise HTTPException(status_code=404, detail="Client not found")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+    
 
-
-@router.patch("/{client_id}/reject", response_model=ClientProfileRead)
-def reject_client(
-    client_id: int,
+@router.delete("/{client_id}", response_model=ClientProfileRead)
+def delete_client(
+    client_id : int,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     require_admin(db, current_user["email"])
+    return cps.delete_client(db, client_id)
 
-    try:
-        return cps.change_client_status(
-            db=db,
-            client_id=client_id,
-            status_name="INACTIVE",
-        )
-    except cps.ClientNotFoundError:
-        raise HTTPException(status_code=404, detail="Client not found")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+

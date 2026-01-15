@@ -86,70 +86,60 @@ def update_client(
 
 
 
-def get_all_client_contracts(db: Session):
-    return db.query(ClientContracts).all()
 
-
-def get_contract_by_client_id(db: Session, client_id: int):
-    return (
-        db.query(ClientContracts)
-        .filter(ClientContracts.client_id == client_id)
-        .first()
-    )
-
-
-def replace_contract_by_client_id(
-    *,
-    db: Session,
-    client_id: int,
-    payload: ClientContractCreate,
-):
-    contract = get_contract_by_client_id(db, client_id)
-    if not contract:
-        return None
-
-    contract.contract_number = payload.contract_number
-    contract.origin_country = payload.origin_country
-    contract.gsa_proposed_discount = payload.gsa_proposed_discount
-    contract.q_v_discount = payload.q_v_discount
-    contract.additional_concessions = payload.additional_concessions
-    contract.normal_delivery_time = payload.normal_delivery_time
-    contract.expedited_delivery_time = payload.expedited_delivery_time
-    contract.fob_term = payload.fob_term
-    contract.energy_star_compliance = payload.energy_star_compliance
-
-    db.commit()
-    db.refresh(contract)
-
-    return contract
 
 class ClientNotFoundError(Exception):
     pass
 
 
-def change_client_status(
-    *,
-    db: Session,
-    client_id: int,
-    status_name: str,
-):
-    """
-    Change client status (approve / reject).
-    Business logic only.
-    """
+def approve_user_service(db: Session, *, client_id: int) -> ClientProfile:
+    client = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
+ 
+    if not client:
+        raise ClientNotFoundError()
+ 
+    if client.status=='approve':
+        return client
+ 
+    client.status = 'approve'
+    db.commit()
+    db.refresh(client)
+ 
+    return client
 
+
+def reject_client(db: Session, *, client_id: int) -> ClientProfile:
     client = (
         db.query(ClientProfile)
-        .filter(ClientProfile.client_id == client_id)
+        .filter(
+            ClientProfile.client_id == client_id,
+            # User.is_deleted.is_(False),
+        )
         .first()
     )
+ 
+    if not client:
+        raise ClientNotFoundError()
+ 
+    if client.status=='reject':
+        return client
+ 
+    client.status = 'reject'
+    db.commit()
+    db.refresh(client)
+ 
+    return client
 
+
+def delete_client(db: Session, client_id:int):
+    client = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
     if not client:
         raise ClientNotFoundError()
 
-    status_id = get_status_id_by_name(db, status_name)
+    if client.is_deleted:
+        return client
 
-    client.status = status_id
+    client.is_deleted = True
     db.commit()
     db.refresh(client)
 

@@ -11,7 +11,7 @@ class User(Base):
     phone_no = Column(String(15), unique=True)
     is_active = Column(Boolean, nullable=False, default=False)
     cognito_sub = Column(String(50), unique=True, nullable=False)
-
+    is_deleted = Column(Boolean, nullable=False, default=False)
 
 
     role_id = Column(
