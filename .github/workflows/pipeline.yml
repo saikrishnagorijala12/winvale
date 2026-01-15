@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_DB: fastapi_db
           POSTGRES_USER: fastapi_user
-          POSTGRES_PASSWORD: Yotta@1234
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ports:
           - 5432:5432
         options: >-
@@ -40,9 +40,10 @@ jobs:
 
       - name: Run tests
         env:
+          ENV: test
           DB_DIALECT: postgresql+psycopg2
           DB_USERNAME: fastapi_user
-          DB_PASSWORD: Yotta@1234
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           WORKING_DB: fastapi_db
           DB_SERVER: localhost
           DB_PORT: 5432
