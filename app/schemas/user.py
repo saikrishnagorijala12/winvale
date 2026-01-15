@@ -9,6 +9,7 @@ class UserCreate(ORMBase):
     email: EmailStr
     phone_no: Optional[str]
     is_active: Optional[bool] = False
+    is_deleted: Optional[bool] = False
     cognito_sub : str
     role_name: str
 
@@ -17,17 +18,19 @@ class UserRead(ORMBase):
     name: str
     email: EmailStr
     phone_no: str
-    is_active: Optional[bool] = False 
+    is_active: Optional[bool] = False
+    is_deleted: Optional[bool] = False 
     role_name: int
     cognito_sub : str
     created_time: datetime
     updated_time: datetime
 
 
-# class UserUpdate(ORMBase):
-#     name: Optional[str] = None
-#     email: Optional[EmailStr] = None
-#     phone_no: Optional[str] = None
-#     is_active: Optional[bool] = False
-#     cognito_sub : Optional[str]
-#     role_id: Optional[int] = None
+class UserUpdate(ORMBase):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_no: Optional[str] = None
+    is_active: Optional[bool] = False
+    is_deleted: Optional[bool] = False
+    cognito_sub : Optional[str]
+    role_id: Optional[str] = None

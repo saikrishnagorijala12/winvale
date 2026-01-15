@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Boolean,
     Column,
     Integer,
     String,
@@ -16,8 +17,16 @@ class ClientContracts(Base):
         Integer, primary_key=True, index=True, autoincrement=True
     )
 
+    contract_officer_name = Column(String(30))
+    contract_officer_address = Column(String(50))
+    contract_officer_city = Column(String(50))
+    contract_officer_state = Column(String(50))
+    contract_officer_zip = Column(String(7))
+
+
     contract_number = Column(String(50), nullable=False)
     origin_country = Column(String(50))
+    
 
     gsa_proposed_discount = Column(Numeric(5, 2))
     q_v_discount = Column(String(50))
@@ -38,6 +47,8 @@ class ClientContracts(Base):
     client_company_logo = Column(String(50))
     signatory_name = Column(String(128))
     signatory_title = Column(String(50))
+    is_deleted = Column(Boolean, nullable=False, default=False)
+
 
     created_time = Column(
         TIMESTAMP(timezone=True),

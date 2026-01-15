@@ -9,9 +9,9 @@ def seed_static_data(db: Session):
     Safe to run multiple times.
     """
     roles = [
-        "ADMIN",
-        "USER",
-        "MANAGER"
+        "admin",
+        "user",
+        "manager"
     ]
 
     for role_name in roles:
@@ -21,9 +21,12 @@ def seed_static_data(db: Session):
 
     # --- Status ---
     statuses = [
-        "ACTIVE",
-        "INACTIVE",
-        "ALL"
+        "pending",
+        "active",
+        "inactive",
+        "aproved",
+        "rejected",
+        "Unknown"
     ]
 
     for status_code in statuses:

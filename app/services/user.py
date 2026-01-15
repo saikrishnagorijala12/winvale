@@ -114,24 +114,41 @@ class UserNotFoundError(Exception):
     pass
 
 
-def approve_user_service(db: Session, *, user_id: int):
-    """
-    Activates a user account.
-    Assumes caller is already authorized.
-    """
-
+def approve_user_service(db: Session, *, user_id: int) -> User:
     user = db.query(User).filter(User.user_id == user_id).first()
-
+ 
     if not user:
         raise UserNotFoundError()
-
+ 
     if user.is_active:
         return user
-
+ 
     user.is_active = True
     db.commit()
     db.refresh(user)
+ 
+    return user
 
+
+def reject_user_service(db: Session, *, user_id: int) -> User:
+    user = (
+        db.query(User)
+        .filter(
+            User.user_id == user_id,
+            User.is_deleted.is_(False),
+        )
+        .first()
+    )
+ 
+    if not user:
+        raise UserNotFoundError()
+ 
+    user.is_deleted = True
+    user.is_active = False
+ 
+    db.commit()
+    db.refresh(user)
+ 
     return user
 
 DEFAULT_ROLE_NAME = "USER"
@@ -161,3 +178,18 @@ def get_or_create_user(
 
 def get_all_users(db: Session):
     return db.query(User).all()
+
+def delete_user(db: Session, user_id:int):
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise UserNotFoundError()
+
+    if user.is_deleted:
+        return user
+
+    user.is_deleted = True
+    db.commit()
+    db.refresh(user)
+
+    return user
+

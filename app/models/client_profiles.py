@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Boolean,
     Column,
     Integer,
     String,
@@ -39,6 +40,8 @@ class ClientProfile(Base):
         ForeignKey("status.status_id", ondelete="RESTRICT"),
         nullable=False
     )
+    is_deleted = Column(Boolean, nullable=False, default=False)
+
 
     created_time = Column(
         TIMESTAMP(timezone=True),

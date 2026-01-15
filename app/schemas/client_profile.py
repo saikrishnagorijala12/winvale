@@ -26,7 +26,8 @@ class ClientProfileBase(ORMBase):
     contact_officer_city: Optional[str] = None
     contact_officer_state: Optional[str] = None
     contact_officer_zip: Optional[str] = None
- 
+    is_deleted: Optional[bool] = False
+
     status: str
 
     @field_validator(
@@ -70,7 +71,7 @@ class ClientProfileUpdate(ORMBase):
     contact_officer_city: Optional[str] = None
     contact_officer_state: Optional[str] = None
     contact_officer_zip: Optional[str] = None
- 
+    is_deleted: Optional[bool] = False
     status: Optional[str] = None
  
     @field_validator(
