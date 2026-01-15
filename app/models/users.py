@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, ForeignKey, text, Boolean
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "users"
@@ -29,3 +30,5 @@ class User(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
     )
+
+    role = relationship("Role")

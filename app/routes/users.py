@@ -50,7 +50,7 @@ def create_user(
             name=payload.name,
             email=str(payload.email),
             phone_no=payload.phone_no,
-            role_id=payload.role_id,
+            role_name=payload.role_name,
         )
 
     except u.UserAlreadyExistsError:
@@ -72,7 +72,7 @@ def update_user(
         name=payload.name,
         email=email,
         phone_no=payload.phone_no,
-        role_id=payload.role_id,
+        role_name=payload.role_name,
     )
 
 @router.patch("/{user_id}/approve")

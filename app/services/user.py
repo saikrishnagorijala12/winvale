@@ -4,6 +4,7 @@ from app.models.users import User
 from datetime import datetime, timezone
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.utils.name_to_id import get_role_id_by_name, get_status_id_by_name
 
 
 def get_user_status_by_email(db: Session, email: str):
@@ -24,7 +25,7 @@ def get_user_status_by_email(db: Session, email: str):
 
         "registered": True,
         "is_active": user.is_active,
-        "role_id": user.role_id
+        "Role": user.role.role_name
     }
 
 
@@ -48,29 +49,27 @@ def get_current_user_by_email(db: Session, email: str):
         "Email Address" : user.email,
         "Contact Number" : user.phone_no,
         "Active Status" : user.is_active,
-        "Role":user.role_id
+        "Role": user.role.role_name
     }
 
 
-def replace_user_by_email(db: Session, *, name: str, email: str, phone_no: str, role_id: int):
-    """
-    FULL replacement of user data.
-    PUT semantics.
-    """
-
+def replace_user_by_email(
+    db: Session,
+    *,
+    name: str,
+    email: str,
+    phone_no: str,
+    role_name: str,
+):
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
-        return {
-            "Response Type": "Error",
-            "Message": "User Not Found"
-        }
+        return None
 
     user.name = name
-    user.email = email
     user.phone_no = phone_no
-    # user.role_id = role_id
-   
+    user.role_id = get_role_id_by_name(db, role_name)
+
     db.commit()
     db.refresh(user)
 
@@ -82,22 +81,26 @@ class UserAlreadyExistsError(Exception):
     pass
 
 
-def create_user_service(db: Session, *, name: str, email: str, phone_no: str, role_id: int):
-    """
-    Creates a new user in inactive state.
-    Raises domain errors, NOT HTTP errors.
-    """
-
+def create_user_service(
+    db: Session,
+    *,
+    name: str,
+    email: str,
+    phone_no: str,
+    role_name: str,
+):
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise UserAlreadyExistsError()
+
+    role_id = get_role_id_by_name(db, role_name)
 
     user = User(
         name=name,
         email=email,
         phone_no=phone_no,
         role_id=role_id,
-        is_active=False
+        is_active=False,
     )
 
     db.add(user)
@@ -131,7 +134,7 @@ def approve_user_service(db: Session, *, user_id: int):
 
     return user
 
-DEFAULT_ROLE_ID = 2 
+DEFAULT_ROLE_NAME = "USER"
 
 def get_or_create_user(
     token_user=Depends(get_current_user),
@@ -146,7 +149,7 @@ def get_or_create_user(
             name=token_user["name"],
             email=token_user["email"],
             phone_no=None,
-            role_id=DEFAULT_ROLE_ID,
+            role_id = get_role_id_by_name(db, DEFAULT_ROLE_NAME),
             is_active=False,
             cognito_sub=token_user["sub"]
         )

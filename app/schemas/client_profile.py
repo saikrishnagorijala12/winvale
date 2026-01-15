@@ -27,7 +27,7 @@ class ClientProfileBase(ORMBase):
     contact_officer_state: Optional[str] = None
     contact_officer_zip: Optional[str] = None
  
-    status: int
+    status: str
 
     @field_validator(
         "contact_officer_name",
@@ -71,7 +71,7 @@ class ClientProfileUpdate(ORMBase):
     contact_officer_state: Optional[str] = None
     contact_officer_zip: Optional[str] = None
  
-    status: Optional[int] = None
+    status: Optional[str] = None
  
     @field_validator(
         "company_name",
