@@ -20,17 +20,13 @@ class UserRead(ORMBase):
     phone_no: str
     is_active: Optional[bool] = False
     is_deleted: Optional[bool] = False 
-    role_name: int
-    cognito_sub : str
-    created_time: datetime
-    updated_time: datetime
 
 
 class UserUpdate(ORMBase):
     name: Optional[str] = None
-    email: Optional[EmailStr] = None
     phone_no: Optional[str] = None
-    is_active: Optional[bool] = False
-    is_deleted: Optional[bool] = False
-    cognito_sub : Optional[str]
-    role_name: Optional[str] = None
+    # email: Optional[EmailStr] = None
+    # is_active: Optional[bool] = False
+    # is_deleted: Optional[bool] = False
+    # cognito_sub : Optional[str]
+    # role_name: Optional[str] = None

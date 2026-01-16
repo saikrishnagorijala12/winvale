@@ -46,8 +46,6 @@ def create_client(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_admin(db, current_user["email"])
- 
     try:
         return cps.create_client_profile(db, payload)
     except cps.ClientAlreadyExistsError:
@@ -69,8 +67,6 @@ def update_client(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_admin(db, current_user["email"])
- 
     try:
         client = cps.update_client(
             db=db,
