@@ -42,14 +42,18 @@ def get_current_user_by_email(db: Session, email: str):
             "Response Type": "Error",
             "Message": "User Not Found"
         }
+    
+    message = "User Feched sucessfully",
 
     return {
-        
-        "Full Name" : user.name,
-        "Email Address" : user.email,
-        "Contact Number" : user.phone_no,
-        "Active Status" : user.is_active,
-        "Role": user.role.role_name
+        "user_id" : user.user_id,
+        "name" : user.name,
+        "email" : user.email,
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
     }
 
 
@@ -73,7 +77,19 @@ def update_user(
     db.commit()
     db.refresh(user)
 
-    return user
+    message = "User Details updated sucessfully",
+
+    return {
+        "user_id" : user.user_id,
+        "name" : user.name,
+        "email" : user.email,
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
+    }
+
 
 
 
@@ -107,7 +123,20 @@ def create_user_service(
     db.commit()
     db.refresh(user)
 
-    return user
+
+    message = "User Created sucessfully",
+
+    return {
+        "user_id" : user.user_id,
+        "name" : user.name,
+        "email" : user.email,
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
+    }
+
 
 
 class UserNotFoundError(Exception):
@@ -126,15 +155,22 @@ def approve_user_service(db: Session, *, user_id: int) -> User:
     user.is_active = True
     db.commit()
     db.refresh(user)
- 
+
+
+    message = "User Approved sucessfully",
+
+
     return {
         "user_id" : user.user_id,
-        "phone_no" : user.phone_no,
+        "name" : user.name,
         "email" : user.email,
-        "role":user.role.role_name,
-        "is_active": user.is_active,
-        "is_deleted":user.is_deleted
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
     }
+
 
 
 def reject_user_service(db: Session, *, user_id: int) -> User:
@@ -155,15 +191,20 @@ def reject_user_service(db: Session, *, user_id: int) -> User:
  
     db.commit()
     db.refresh(user)
+
+    message = "User Rejected sucessfully",
  
     return {
         "user_id" : user.user_id,
-        "phone_no" : user.phone_no,
+        "name" : user.name,
         "email" : user.email,
-        "role":user.role.role_name,
-        "is_active": user.is_active,
-        "is_deleted":user.is_deleted
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
     }
+
 
 DEFAULT_ROLE_NAME = "admin"
 
@@ -188,14 +229,20 @@ def get_or_create_user(
         db.commit()
         db.refresh(user)
 
+    message ="User Created/updated sucessfully"
+
+ 
     return {
         "user_id" : user.user_id,
-        "phone_no" : user.phone_no,
+        "name" : user.name,
         "email" : user.email,
-        "role":user.role.role_name,
-        "is_active": user.is_active,
-        "is_deleted":user.is_deleted
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
     }
+
 
 def get_all_users(db: Session):
     return db.query(User).all()
@@ -212,5 +259,16 @@ def delete_user(db: Session, user_id:int):
     db.commit()
     db.refresh(user)
 
-    return user
+    message = "User Deactivated sucessfully",
+
+    return {
+        "user_id" : user.user_id,
+        "name" : user.name,
+        "email" : user.email,
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
+    }
 
