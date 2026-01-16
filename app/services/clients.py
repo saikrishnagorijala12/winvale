@@ -5,6 +5,7 @@ from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
 from app.models.status import Status
 from app.schemas.client_profile import ClientProfileCreate, ClientProfileUpdate
+from app.utils.name_to_id import get_status_id_by_name
  
 class ClientAlreadyExistsError(Exception):
     pass
@@ -12,6 +13,32 @@ class ClientAlreadyExistsError(Exception):
  
 class ClientNotFoundError(Exception):
     pass
+
+def serialize_client(c: ClientProfile) -> dict:
+    return {
+        "client_id": c.client_id,
+        "company_name": c.company_name,
+        "company_email": c.company_email,
+        "company_phone_no": c.company_phone_no,
+        "company_address": c.company_address,
+        "company_city": c.company_city,
+        "company_state": c.company_state,
+        "company_zip": c.company_zip,
+
+        "contact_officer_name": c.contact_officer_name,
+        "contact_officer_email": c.contact_officer_email,
+        "contact_officer_phone_no": c.contact_officer_phone_no,
+        "contact_officer_address": c.contact_officer_address,
+        "contact_officer_city": c.contact_officer_city,
+        "contact_officer_state": c.contact_officer_state,
+        "contact_officer_zip": c.contact_officer_zip,
+
+        "is_deleted": c.is_deleted,
+        "status": c.status_rel.status_code,
+        "created_time": c.created_time,
+        "updated_time": c.updated_time,
+    }
+
  
 def get_all_clients(db: Session):
     clients = (
@@ -62,22 +89,18 @@ def create_client_profile(db: Session, payload: ClientProfileCreate):
     )
  
     if existing:
-        if existing.company_email == payload.company_email:
-            raise ClientAlreadyExistsError("Company email already registered")
-        if existing.company_phone_no == payload.company_phone_no:
-            raise ClientAlreadyExistsError("Company phone number already registered")
- 
-    client = ClientProfile(**payload.model_dump())
- 
+        raise ClientAlreadyExistsError("Client already exists")
+
+    data = payload.model_dump()
+    status_value = data.pop("status")
+
+    client = ClientProfile(**data)
+    client.status = get_status_id_by_name(db, status_value)
+
     db.add(client)
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
- 
+    db.commit()
     db.refresh(client)
-    return client
+    return serialize_client(client)
  
  
  
@@ -99,7 +122,10 @@ def update_client(
         return None
  
     update_data = data.model_dump(exclude_unset=True)
- 
+
+    if "status" in update_data:
+        client.status = get_status_id_by_name(db, update_data.pop("status"))
+
     for field, value in update_data.items():
         setattr(client, field, value)
  
@@ -108,7 +134,7 @@ def update_client(
     db.commit()
     db.refresh(client)
  
-    return client
+    return serialize_client(client)
  
  
 def update_client_status(
@@ -130,21 +156,11 @@ def update_client_status(
  
     if not client:
         raise ClientNotFoundError()
-    
-    target_status_name = "approved" if action == "approve" else "rejected"
- 
-    target_status = (
-        db.query(Status)
-        .filter(Status.status_code == target_status_name)
-        .first()
-    )
- 
-    if not target_status:
-        raise RuntimeError(
-            f"Status '{target_status_name}' not configured in status table"
-        )
- 
-    if client.status == target_status.status_id:
+
+    target = "approved" if action == "approve" else "rejected"
+    target_status_id = get_status_id_by_name(db, target)
+
+    if client.status == target_status_id:
         return client
  
     if action == "approve":
@@ -156,7 +172,7 @@ def update_client_status(
         if rejected_status and client.status == rejected_status.status_id:
             raise ValueError("Rejected client cannot be approved")
  
-    client.status = target_status.status_id
+    client.status = target_status_id
     db.commit()
     db.refresh(client)
  

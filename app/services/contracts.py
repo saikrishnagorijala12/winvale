@@ -27,26 +27,30 @@ def create_contract_by_client_id(
     client_id: int,
     payload: ClientContractCreate,
 ):
-    contract = get_contract_by_client_id(db, client_id)
-    if not contract:
-        return None
+    existing = get_contract_by_client_id(db, client_id)
+    if existing:
+        raise ValueError("Contract already exists for this client")
 
-    contract.contract_officer_name = payload.contract_officer_name
-    contract.contract_officer_address = payload.contract_officer_address
-    contract.contract_officer_city = payload.contract_number
-    contract.contract_officer_state = payload.contract_officer_state
-    contract.contract_officer_zip = payload.contract_officer_zip
-    
-    contract.contract_number = payload.contract_number
-    contract.origin_country = payload.origin_country
-    contract.gsa_proposed_discount = payload.gsa_proposed_discount
-    contract.q_v_discount = payload.q_v_discount
-    contract.additional_concessions = payload.additional_concessions
-    contract.normal_delivery_time = payload.normal_delivery_time
-    contract.expedited_delivery_time = payload.expedited_delivery_time
-    contract.fob_term = payload.fob_term
-    contract.energy_star_compliance = payload.energy_star_compliance
+    contract = ClientContracts(
+        client_id=client_id,
+        contract_number=payload.contract_number,
+        contract_officer_name=payload.contract_officer_name,
+        contract_officer_address=payload.contract_officer_address,
+        contract_officer_city=payload.contract_officer_city,
+        contract_officer_state=payload.contract_officer_state,
+        contract_officer_zip=payload.contract_officer_zip,
+        origin_country=payload.origin_country,
+        gsa_proposed_discount=payload.gsa_proposed_discount,
+        q_v_discount=payload.q_v_discount,
+        additional_concessions=payload.additional_concessions,
+        normal_delivery_time=payload.normal_delivery_time,
+        expedited_delivery_time=payload.expedited_delivery_time,
+        fob_term=payload.fob_term,
+        energy_star_compliance=payload.energy_star_compliance,
+        is_deleted=payload.is_deleted or False,
+    )
 
+    db.add(contract)
     db.commit()
     db.refresh(contract)
 
