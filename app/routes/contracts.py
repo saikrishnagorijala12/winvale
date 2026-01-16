@@ -9,7 +9,7 @@ from app.schemas.client_contract import (
     ClientContractCreate,
     ClientContractUpdate,
 )
-from app.services import contrats as cont
+from app.services import contracts as cont
 from app.utils.admin_check import require_admin
 
 router = APIRouter(prefix="/contracts", tags=["Contrats"])

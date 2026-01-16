@@ -24,7 +24,7 @@ def seed_static_data(db: Session):
         "pending",
         "active",
         "inactive",
-        "aproved",
+        "approved",
         "rejected",
         "Unknown"
     ]

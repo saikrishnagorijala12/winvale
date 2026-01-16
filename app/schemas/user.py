@@ -33,4 +33,4 @@ class UserUpdate(ORMBase):
     is_active: Optional[bool] = False
     is_deleted: Optional[bool] = False
     cognito_sub : Optional[str]
-    role_id: Optional[str] = None
+    role_name: Optional[str] = None

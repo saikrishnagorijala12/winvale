@@ -53,7 +53,7 @@ def get_current_user_by_email(db: Session, email: str):
     }
 
 
-def replace_user_by_email(
+def update_user(
     db: Session,
     *,
     name: str,
@@ -127,7 +127,14 @@ def approve_user_service(db: Session, *, user_id: int) -> User:
     db.commit()
     db.refresh(user)
  
-    return user
+    return {
+        "user_id" : user.user_id,
+        "phone_no" : user.phone_no,
+        "email" : user.email,
+        "role":user.role.role_name,
+        "is_active": user.is_active,
+        "is_deleted":user.is_deleted
+    }
 
 
 def reject_user_service(db: Session, *, user_id: int) -> User:
@@ -149,9 +156,16 @@ def reject_user_service(db: Session, *, user_id: int) -> User:
     db.commit()
     db.refresh(user)
  
-    return user
+    return {
+        "user_id" : user.user_id,
+        "phone_no" : user.phone_no,
+        "email" : user.email,
+        "role":user.role.role_name,
+        "is_active": user.is_active,
+        "is_deleted":user.is_deleted
+    }
 
-DEFAULT_ROLE_NAME = "USER"
+DEFAULT_ROLE_NAME = "admin"
 
 def get_or_create_user(
     token_user=Depends(get_current_user),
@@ -166,7 +180,7 @@ def get_or_create_user(
             name=token_user["name"],
             email=token_user["email"],
             phone_no=None,
-            role_id = get_role_id_by_name(db, DEFAULT_ROLE_NAME),
+            role_name = get_role_id_by_name(db, DEFAULT_ROLE_NAME),
             is_active=False,
             cognito_sub=token_user["sub"]
         )
@@ -174,7 +188,14 @@ def get_or_create_user(
         db.commit()
         db.refresh(user)
 
-    return user
+    return {
+        "user_id" : user.user_id,
+        "phone_no" : user.phone_no,
+        "email" : user.email,
+        "role":user.role.role_name,
+        "is_active": user.is_active,
+        "is_deleted":user.is_deleted
+    }
 
 def get_all_users(db: Session):
     return db.query(User).all()
