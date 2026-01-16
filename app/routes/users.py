@@ -69,11 +69,11 @@ def update_user(
 
     return u.update_user(
         db,
-        name=payload.name,
         email=email,
+        name=payload.name,
         phone_no=payload.phone_no,
-        role_name=payload.role_name,
     )
+
 
 @router.patch("/{user_id}/approve")
 def approve_or_reject_user(

@@ -56,38 +56,36 @@ def get_current_user_by_email(db: Session, email: str):
         "message" : message
     }
 
-
 def update_user(
     db: Session,
     *,
-    name: str,
     email: str,
-    phone_no: str,
-    role_name: str,
+    name: str | None = None,
+    phone_no: str | None = None,
 ):
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
         return None
 
-    user.name = name
-    user.phone_no = phone_no
-    user.role_id = get_role_id_by_name(db, role_name)
+    if name is not None:
+        user.name = name
+
+    if phone_no is not None:
+        user.phone_no = phone_no
 
     db.commit()
     db.refresh(user)
 
-    message = "User Details updated sucessfully",
-
     return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "phone_no": user.phone_no,
+        "is_active": user.is_active,
+        "is_deleted": user.is_deleted,
         "role": user.role.role_name,
-        "message" : message
+        "message": "User details updated successfully",
     }
 
 
@@ -206,7 +204,7 @@ def reject_user_service(db: Session, *, user_id: int) -> User:
     }
 
 
-DEFAULT_ROLE_NAME = "admin"
+DEFAULT_ROLE_NAME = "user"
 
 def get_or_create_user(
     token_user=Depends(get_current_user),
@@ -221,15 +219,13 @@ def get_or_create_user(
             name=token_user["name"],
             email=token_user["email"],
             phone_no=None,
-            role_name = get_role_id_by_name(db, DEFAULT_ROLE_NAME),
+            role_id = get_role_id_by_name(db, DEFAULT_ROLE_NAME),
             is_active=False,
             cognito_sub=token_user["sub"]
         )
         db.add(user)
         db.commit()
         db.refresh(user)
-
-    message ="User Created/updated sucessfully"
 
  
     return {
@@ -239,8 +235,7 @@ def get_or_create_user(
         "phone_no" : user.phone_no,
         "is_active" : user.is_active,
         "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
+        "role": user.role.role_name
     }
 
 

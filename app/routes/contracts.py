@@ -51,7 +51,6 @@ def create_client_contract(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_admin(db, current_user["email"])
 
     contract = cont.create_contract_by_client_id(
         db=db,
@@ -74,7 +73,6 @@ def update_client_contract(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_admin(db, current_user["email"])
 
     contract = cont.update_contract_by_client_id(
         db=db,
@@ -94,7 +92,6 @@ def delete_client(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_admin(db, current_user["email"])
     return cont.delete_contract(db, client_id)
 
 
