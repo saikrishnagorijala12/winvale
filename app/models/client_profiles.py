@@ -10,6 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 
 class ClientProfile(Base):
     __tablename__ = "client_profiles"
@@ -53,3 +54,5 @@ class ClientProfile(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
     )
+
+    status_rel = relationship("Status", lazy="joined")

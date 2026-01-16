@@ -67,7 +67,7 @@ def update_user(
 ):
     email = str(current_user["email"])
 
-    return u.replace_user_by_email(
+    return u.update_user(
         db,
         name=payload.name,
         email=email,
