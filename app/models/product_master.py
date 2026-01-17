@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     text
 )
+from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 class ProductMaster(Base):
@@ -58,4 +59,24 @@ class ProductMaster(Base):
         TIMESTAMP(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
+    )
+
+    client = relationship(
+        "ClientProfile",
+        back_populates="products",
+    )
+
+
+    histories = relationship(
+        "ProductHistory",
+        back_populates="product",
+        cascade="all, delete-orphan",
+    )
+
+
+    dimension = relationship(
+        "ProductDim",
+        back_populates="product",
+        uselist=False,
+        cascade="all, delete-orphan",
     )

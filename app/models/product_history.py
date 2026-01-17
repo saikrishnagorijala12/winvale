@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     text
 )
+from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 class ProductHistory(Base):
@@ -79,3 +80,11 @@ class ProductHistory(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
     )
+    
+    product = relationship(
+        "ProductMaster",
+        back_populates="histories",
+    )
+    
+    client = relationship("ClientProfile")
+

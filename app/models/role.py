@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, text
+from sqlalchemy.orm import relationship
 from app.models.base import Base 
 
 
@@ -17,4 +18,9 @@ class Role(Base):
         TIMESTAMP(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
+    )
+
+    users = relationship(
+        "User",
+        back_populates="role",
     )

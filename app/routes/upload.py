@@ -15,20 +15,14 @@ async def upload_products(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not file.filename.endswith(".xlsx"):
+    if not file.filename.lower().endswith(".xlsx"):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Only Excel (.xlsx) files are allowed",
         )
 
-    result = upload_products_service(
+    return upload_products_service(
         db=db,
         client_id=client_id,
         file=file,
-        user_id=current_user.user_id,
-    )
-
-    if result is None:
-        raise HTTPException(status_code=404, detail="Client not found")
-
-    return result
+    )       

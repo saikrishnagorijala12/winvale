@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     text
 )
+from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 class ProductDim(Base):
@@ -41,4 +42,9 @@ class ProductDim(Base):
         TIMESTAMP(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
+    )
+
+    product = relationship(
+        "ProductMaster",
+        back_populates="dimension",
     )

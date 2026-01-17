@@ -56,3 +56,8 @@ class ClientProfile(Base):
     )
 
     status_rel = relationship("Status", lazy="joined")
+    products = relationship(
+        "ProductMaster",
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
