@@ -6,15 +6,46 @@ from sqlalchemy import (
     Text,
     TIMESTAMP,
     ForeignKey,
-    text
+    text,
+    Index,
 )
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
+
 class ProductMaster(Base):
     __tablename__ = "product_master"
 
-    product_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    __table_args__ = (
+        Index(
+            "ux_product_master_identity",
+            "client_id",
+            "manufacturer",
+            "manufacturer_part_number",
+            unique=True,
+        ),
+
+        Index(
+            "ix_product_master_client",
+            "client_id",
+        ),
+
+        Index(
+            "ix_product_master_product_id",
+            "product_id",
+        ),
+
+        Index(
+            "ix_product_master_signature",
+            "row_signature",
+        ),
+    )
+
+    product_id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
 
     client_id = Column(
         Integer,
@@ -49,6 +80,7 @@ class ProductMaster(Base):
 
     url_508 = Column(Text)
     product_url = Column(Text)
+
     row_signature = Column(String(64), nullable=False)
 
     created_time = Column(
@@ -67,13 +99,11 @@ class ProductMaster(Base):
         back_populates="products",
     )
 
-
     histories = relationship(
         "ProductHistory",
         back_populates="product",
         cascade="all, delete-orphan",
     )
-
 
     dimension = relationship(
         "ProductDim",

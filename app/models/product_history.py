@@ -1,5 +1,3 @@
-# app/models/product_history.py
-
 from sqlalchemy import (
     Column,
     Integer,
@@ -10,6 +8,7 @@ from sqlalchemy import (
     TIMESTAMP,
     ForeignKey,
     text,
+    Index,
 )
 from sqlalchemy.orm import relationship
 from app.models.base import Base
@@ -17,6 +16,31 @@ from app.models.base import Base
 
 class ProductHistory(Base):
     __tablename__ = "product_history"
+
+    __table_args__ = (
+        Index(
+            "ix_product_history_current",
+            "product_id",
+            "is_current",
+        ),
+
+        Index(
+            "ix_product_history_product_time",
+            "product_id",
+            "effective_start_date",
+        ),
+
+        Index(
+            "ix_product_history_signature",
+            "product_id",
+            "row_signature",
+        ),
+
+        Index(
+            "ix_product_history_client",
+            "client_id",
+        ),
+    )
 
     product_history_id = Column(
         Integer,
@@ -37,9 +61,7 @@ class ProductHistory(Base):
         nullable=False,
     )
 
-    # =====================
-    # SNAPSHOT FIELDS
-    # =====================
+
     item_type = Column(String(50), nullable=False)
     item_name = Column(String(50), nullable=False)
     item_description = Column(Text)
@@ -66,9 +88,7 @@ class ProductHistory(Base):
     url_508 = Column(Text)
     product_url = Column(Text)
 
-    # =====================
-    # SCD-2 CONTROL
-    # =====================
+
     row_signature = Column(String(64), nullable=False)
 
     effective_start_date = Column(
@@ -88,9 +108,6 @@ class ProductHistory(Base):
         server_default=text("true"),
     )
 
-    # =====================
-    # AUDIT
-    # =====================
     created_time = Column(
         TIMESTAMP(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
@@ -104,9 +121,6 @@ class ProductHistory(Base):
         nullable=False,
     )
 
-    # =====================
-    # RELATIONSHIPS
-    # =====================
     product = relationship(
         "ProductMaster",
         back_populates="histories",

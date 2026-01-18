@@ -1,4 +1,3 @@
-# app/utils/upload_helper.py
 import math
 import hashlib
 from decimal import Decimal, ROUND_HALF_UP
