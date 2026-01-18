@@ -1,3 +1,5 @@
+# app/models/product_history.py
+
 from sqlalchemy import (
     Column,
     Integer,
@@ -7,30 +9,37 @@ from sqlalchemy import (
     Boolean,
     TIMESTAMP,
     ForeignKey,
-    text
+    text,
 )
 from sqlalchemy.orm import relationship
 from app.models.base import Base
+
 
 class ProductHistory(Base):
     __tablename__ = "product_history"
 
     product_history_id = Column(
-        Integer, primary_key=True, index=True, autoincrement=True
+        Integer,
+        primary_key=True,
+        index=True,
+        autoincrement=True,
     )
 
     product_id = Column(
         Integer,
         ForeignKey("product_master.product_id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
     )
 
     client_id = Column(
         Integer,
         ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
-        nullable=False
+        nullable=False,
     )
 
+    # =====================
+    # SNAPSHOT FIELDS
+    # =====================
     item_type = Column(String(50), nullable=False)
     item_name = Column(String(50), nullable=False)
     item_description = Column(Text)
@@ -57,34 +66,50 @@ class ProductHistory(Base):
     url_508 = Column(Text)
     product_url = Column(Text)
 
+    # =====================
+    # SCD-2 CONTROL
+    # =====================
+    row_signature = Column(String(64), nullable=False)
+
     effective_start_date = Column(
         TIMESTAMP(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
-        nullable=False
+        nullable=False,
     )
 
     effective_end_date = Column(
         TIMESTAMP(timezone=True),
-        nullable=True
+        nullable=True,
     )
 
-    is_current = Column(Boolean, nullable=False, server_default=text("true"))
+    is_current = Column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
+    )
 
+    # =====================
+    # AUDIT
+    # =====================
     created_time = Column(
         TIMESTAMP(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP")
+        server_default=text("CURRENT_TIMESTAMP"),
+        nullable=False,
     )
 
     updated_time = Column(
         TIMESTAMP(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
-        onupdate=text("CURRENT_TIMESTAMP")
+        onupdate=text("CURRENT_TIMESTAMP"),
+        nullable=False,
     )
-    
+
+    # =====================
+    # RELATIONSHIPS
+    # =====================
     product = relationship(
         "ProductMaster",
         back_populates="histories",
     )
-    
-    client = relationship("ClientProfile")
 
+    client = relationship("ClientProfile")

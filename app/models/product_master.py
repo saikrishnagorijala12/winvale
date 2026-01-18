@@ -49,6 +49,7 @@ class ProductMaster(Base):
 
     url_508 = Column(Text)
     product_url = Column(Text)
+    row_signature = Column(String(64), nullable=False)
 
     created_time = Column(
         TIMESTAMP(timezone=True),
