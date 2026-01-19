@@ -22,6 +22,13 @@ def get_all_clients(
     db: Session = Depends(get_db),
 ):
     return cps.get_all_clients(db)
+
+@router.get("/active", response_model=list[ClientListRead])
+def get_active_clients(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return cps.get_active_clients(db)
  
  
 @router.get("/{client_id}", response_model=ClientProfileRead)

@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,joinedload
 from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
 from app.models.status import Status
@@ -64,7 +64,34 @@ def get_all_clients(db: Session):
         }
         for c in clients
     ]
- 
+
+def get_active_clients(db: Session):
+    clients = (
+        db.query(ClientProfile)
+        .join(ClientProfile.status_rel)
+        .options(joinedload(ClientProfile.status_rel))
+        .filter(
+            ClientProfile.is_deleted.is_(False),
+            Status.status_code == "active"
+        )
+        .all()
+    )
+
+    return [
+        {
+            "client_id": c.client_id,
+            "company_name": c.company_name,
+            "company_email": c.company_email,
+            "contact_officer_name": c.contact_officer_name,
+            "company_address": c.company_address,
+            "company_city": c.company_city,
+            "company_state": c.company_state,
+            "company_zip": c.company_zip,
+            "status": c.status_rel.status_code,
+            "created_time": c.created_time,
+        }
+        for c in clients
+    ]
  
 def get_client_by_id(db: Session, client_id: int) -> ClientProfile | None:
     return (
