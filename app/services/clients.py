@@ -191,4 +191,17 @@ def update_client_status(
  
     return client
  
- 
+def delete_client(db: Session, client_id:int):
+    client = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
+    if not client:
+        raise ClientNotFoundError()
+
+    if client.is_deleted:
+        return client
+
+    client.is_deleted = True
+    db.commit()
+    db.refresh(client)
+
+    return client
+
