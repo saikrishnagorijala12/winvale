@@ -38,6 +38,7 @@ class ClientContractRead(ORMBase):
     updated_time: datetime
 
 class ClientContractUpdate(ORMBase):
+    contract_number: Optional[str]
     contract_officer_name: Optional[str] = None
     contract_officer_address: Optional[str] = None
     contract_officer_city: Optional[str] = None

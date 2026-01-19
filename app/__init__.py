@@ -38,7 +38,7 @@ def create_app():
             conn.execute(text("CREATE SCHEMA IF NOT EXISTS dev"))
     finally:
         tmp_engine.dispose()
-    # print("DB_URL : "+DB_URL)
+    print("DB_URL : "+DB_URL)
     db_engine = create_engine(DB_URL, connect_args={"options": "-c search_path=dev"})
     SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=db_engine)
     Base.metadata.create_all(bind=db_engine)

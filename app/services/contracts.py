@@ -1,10 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
-from app.schemas.client_profile import (
-    ClientProfileCreate,
-    ClientProfileUpdate,
-)
 from app.schemas.client_contract import ClientContractCreate
 from app.utils.name_to_id import get_status_id_by_name
 
@@ -70,7 +66,7 @@ def update_contract_by_client_id(
 
     contract.contract_officer_name = payload.contract_officer_name
     contract.contract_officer_address = payload.contract_officer_address
-    contract.contract_officer_city = payload.contract_number
+    contract.contract_officer_city = payload.contract_officer_city
     contract.contract_officer_state = payload.contract_officer_state
     contract.contract_officer_zip = payload.contract_officer_zip
     
