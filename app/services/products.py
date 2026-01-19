@@ -21,7 +21,7 @@ def get_all(db: Session):
     return [
     {
         "product_id": p.product_id,
-        "client_id": p.client_id,
+        "client": p.client.company_name,
 
         "item_type": p.item_type,
         "item_name": p.item_name,
@@ -74,7 +74,7 @@ def get_by_id(db: Session, product_id: int):
 
     return {
         "product_id": product.product_id,
-        "client_id": product.client_id,
+        "client": product.client.company_name,
 
         "item_type": product.item_type,
         "item_name": product.item_name,
@@ -126,7 +126,7 @@ def get_by_client(db: Session, client_id: int):
     return [
     {
         "product_id": p.product_id,
-        "client_id": p.client_id,
+        "client": p.client.company_name,
 
         "item_type": p.item_type,
         "item_name": p.item_name,

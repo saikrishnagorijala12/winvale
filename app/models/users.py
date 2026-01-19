@@ -31,4 +31,4 @@ class User(Base):
         onupdate=text("CURRENT_TIMESTAMP")
     )
 
-    role = relationship("Role")
+    role = relationship("Role", back_populates="users")

@@ -244,7 +244,19 @@ def get_or_create_user(
 
 
 def get_all_users(db: Session):
-    return db.query(User).all()
+    users = db.query(User).all()
+    return [
+        {
+            "user_id": u.user_id,
+            "name": u.name,
+            "email": u.email,
+            "phone_no": u.phone_no,
+            "is_active": u.is_active,
+            "is_deleted": u.is_deleted,
+            "role": u.role.role_name,
+        }
+        for u in users
+    ]
 
 def delete_user(db: Session, user_id:int):
     user = db.query(User).filter(User.user_id == user_id).first()
