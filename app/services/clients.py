@@ -1,9 +1,11 @@
 from datetime import datetime
+from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
 from app.models.status import Status
+from app.models.users import User
 from app.schemas.client_profile import ClientProfileCreate, ClientProfileUpdate
 from app.utils.name_to_id import get_status_id_by_name
  
@@ -72,11 +74,22 @@ def get_client_by_id(db: Session, client_id: int) -> ClientProfile | None:
     )
  
  
-def create_client_profile(db: Session, payload: ClientProfileCreate):
+def create_client_profile(db: Session, payload: ClientProfileCreate, current_user):
     """
     Create a client profile with duplicate email / phone checks.
     """
- 
+
+    email = current_user["email"]
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized"
+            )
+
+
+
     existing = (
         db.query(ClientProfile)
         .filter(

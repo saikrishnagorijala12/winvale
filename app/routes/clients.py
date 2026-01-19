@@ -47,7 +47,7 @@ def create_client(
     db: Session = Depends(get_db),
 ):
     try:
-        return cps.create_client_profile(db, payload)
+        return cps.create_client_profile(db, payload, current_user)
     except cps.ClientAlreadyExistsError:
         raise HTTPException(
             status_code=409,
