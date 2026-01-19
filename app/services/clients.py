@@ -72,7 +72,7 @@ def get_active_clients(db: Session):
         .options(joinedload(ClientProfile.status_rel))
         .filter(
             ClientProfile.is_deleted.is_(False),
-            Status.status_code == "active"
+            Status.status_code == "approved"
         )
         .all()
     )
