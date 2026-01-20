@@ -48,22 +48,10 @@ def get_all_clients(db: Session):
         .filter(ClientProfile.is_deleted.is_(False))
         .all()
     )
+    for c in clients:
+        return serialize_client(c)
  
-    return [
-        {
-            "client_id": c.client_id,
-            "company_name": c.company_name,
-            "company_email": c.company_email,
-            "contact_officer_name":c.contact_officer_name,
-            "company_address": c.company_address,
-            "company_city": c.company_city,
-            "company_state": c.company_state,
-            "company_zip": c.company_zip,
-            "status": c.status_rel.status_code,
-            "created_time": c.created_time,
-        }
-        for c in clients
-    ]
+    
 
 def get_active_clients(db: Session):
     clients = (
@@ -78,18 +66,7 @@ def get_active_clients(db: Session):
     )
 
     return [
-        {
-            "client_id": c.client_id,
-            "company_name": c.company_name,
-            "company_email": c.company_email,
-            "contact_officer_name": c.contact_officer_name,
-            "company_address": c.company_address,
-            "company_city": c.company_city,
-            "company_state": c.company_state,
-            "company_zip": c.company_zip,
-            "status": c.status_rel.status_code,
-            "created_time": c.created_time,
-        }
+        serialize_client(c)
         for c in clients
     ]
  
@@ -230,5 +207,5 @@ def delete_client(db: Session, client_id:int):
     db.commit()
     db.refresh(client)
 
-    return client
+    return serialize_client(client)
 

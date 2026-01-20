@@ -27,6 +27,8 @@ class ClientProfileBase(ORMBase):
     contact_officer_state: Optional[str] = None
     contact_officer_zip: Optional[str] = None
     is_deleted: Optional[bool] = False
+    created_time: datetime
+    updated_time: datetime
  
     status: str
  
@@ -55,17 +57,9 @@ class ClientProfileRead(ClientProfileBase):
     updated_time: datetime
  
  
-class ClientListRead(ORMBase):
+class ClientListRead(ClientProfileBase):
     client_id: int
-    company_name: str
-    company_email: str
-    contact_officer_name: Optional[str] = None
-    company_address: str
-    company_city: str
-    company_state: str
-    company_zip: str
-    status: str
-    created_time: datetime
+    
  
  
 class ClientProfileUpdate(ORMBase):

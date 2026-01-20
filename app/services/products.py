@@ -12,11 +12,11 @@ def get_all(db: Session):
         .all()
     )
 
-    if not products:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No Products found"
-        )
+    # if not products:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_301_MOVED_PERMANENTLY,
+    #         detail="No Products found"
+    #     )
  
     return [
     {

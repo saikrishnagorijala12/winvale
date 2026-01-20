@@ -9,6 +9,7 @@ from sqlalchemy import (
     text
 )
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 
 class ClientContracts(Base):
     __tablename__ = "client_contracts"
@@ -40,8 +41,8 @@ class ClientContracts(Base):
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
-        nullable=False
+        ForeignKey("client_profiles.client_id",  ondelete="RESTRICT"),
+        nullable=False,  unique=True
     )
 
     client_company_logo = Column(String(50))
@@ -59,4 +60,9 @@ class ClientContracts(Base):
         TIMESTAMP(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
+    )
+
+    client = relationship(
+        "ClientProfile",
+        back_populates="contracts"
     )

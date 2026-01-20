@@ -7,7 +7,31 @@ from app.utils.name_to_id import get_status_id_by_name
 
 
 def get_all_client_contracts(db: Session):
-    return db.query(ClientContracts).all()
+    contacts = db.query(ClientContracts).all()
+    
+    return [
+        # contract = c.ClientContracts
+    {
+        "client_id" : c.client.company_name,
+        "contract_number" : c.payload.contract_number,
+        "contract_officer_name" : c.payload.contract_officer_name,
+        "contract_officer_address" : c.payload.contract_officer_address,
+        "contract_officer_city" : c.contract_officer_city,
+        "contract_officer_state" : c.contract_officer_state,
+        "contract_officer_zip" : c.contract_officer_zip,
+        "origin_country" : c.origin_country,
+        "gsa_proposed_discount" : c.gsa_proposed_discount,
+        "q_v_discount" : c.q_v_discount,
+        "additional_concessions" : c.additional_concessions,
+        "normal_delivery_time" : c.normal_delivery_time,
+        "expedited_delivery_time" : c.expedited_delivery_time,
+        "fob_term" : c.fob_term,
+        "energy_star_compliance" : c.energy_star_compliance,
+        "is_deleted" : c.is_deleted or False,
+        }
+        
+        for c in contacts
+    ]
 
 
 def get_contract_by_client_id(db: Session, client_id: int):

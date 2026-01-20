@@ -254,6 +254,7 @@ def get_all_users(db: Session):
             "is_active": u.is_active,
             "is_deleted": u.is_deleted,
             "role": u.role.role_name,
+            "created_time" : u.created_time
         }
         for u in users
     ]

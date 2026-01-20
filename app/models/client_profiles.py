@@ -61,3 +61,8 @@ class ClientProfile(Base):
         back_populates="client",
         cascade="all, delete-orphan",
     )
+    contracts = relationship(
+        "ClientContracts",
+        back_populates="client",
+        cascade="all, delete-orphan"
+    )
