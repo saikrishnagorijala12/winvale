@@ -18,7 +18,7 @@ class ClientProfileBase(ORMBase):
     company_city: str
     company_state: str
     company_zip: str
- 
+
     contact_officer_name: Optional[str] = None
     contact_officer_email: Optional[EmailStr] = None
     contact_officer_phone_no: Optional[str] = None
@@ -26,40 +26,29 @@ class ClientProfileBase(ORMBase):
     contact_officer_city: Optional[str] = None
     contact_officer_state: Optional[str] = None
     contact_officer_zip: Optional[str] = None
-    is_deleted: Optional[bool] = False
-    created_time: datetime
-    updated_time: datetime
- 
-    status: str
- 
+
     @field_validator(
-        "contact_officer_name",
         "contact_officer_email",
-        "contact_officer_phone_no",
-        "contact_officer_address",
-        "contact_officer_city",
-        "contact_officer_state",
-        "contact_officer_zip",
         mode="before",
     )
     @classmethod
-    def normalize_optional_fields(cls, v):
+    def normalize_email(cls, v):
         return empty_str_to_none(v)
  
  
 class ClientProfileCreate(ClientProfileBase):
-    pass
- 
+    status: str
+
  
 class ClientProfileRead(ClientProfileBase):
     client_id: int
+    status: str
+    is_deleted: bool
     created_time: datetime
     updated_time: datetime
  
- 
-class ClientListRead(ClientProfileBase):
-    client_id: int
-    
+class ClientListRead(ClientProfileRead):
+    pass
  
  
 class ClientProfileUpdate(ORMBase):

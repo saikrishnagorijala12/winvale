@@ -12,10 +12,10 @@ def get_all_client_contracts(db: Session):
     return [
         # contract = c.ClientContracts
     {
-        "client_id" : c.client.company_name,
-        "contract_number" : c.payload.contract_number,
-        "contract_officer_name" : c.payload.contract_officer_name,
-        "contract_officer_address" : c.payload.contract_officer_address,
+        "client" : c.client.company_name,
+        "contract_number" : c.contract_number,
+        "contract_officer_name" : c.contract_officer_name,
+        "contract_officer_address" : c.contract_officer_address,
         "contract_officer_city" : c.contract_officer_city,
         "contract_officer_state" : c.contract_officer_state,
         "contract_officer_zip" : c.contract_officer_zip,
@@ -67,7 +67,6 @@ def create_contract_by_client_id(
         expedited_delivery_time=payload.expedited_delivery_time,
         fob_term=payload.fob_term,
         energy_star_compliance=payload.energy_star_compliance,
-        is_deleted=payload.is_deleted or False,
     )
 
     db.add(contract)

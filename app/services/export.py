@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session, joinedload
 from openpyxl import Workbook
+from datetime import datetime, timezone
 from app.utils.gsa_header import GSA_HEADERS
 from app.models.product_master import ProductMaster
+from app.models.client_profiles import ClientProfile
 
 
 def export_products_excel(db: Session, client_id: int):
@@ -73,3 +75,15 @@ def export_products_excel(db: Session, client_id: int):
 
 
     return wb
+
+def get_master_filename(db:Session, client_id:int):
+    client = db.query(ClientProfile).filter_by(client_id=client_id).first()
+
+    client_name= client.company_name
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+    filename = f"{client_name}_master_{date_str}.xlsx"
+
+    return filename
+    

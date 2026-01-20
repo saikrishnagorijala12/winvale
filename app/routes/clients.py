@@ -16,7 +16,7 @@ router = APIRouter(prefix="/clients", tags=["Clients"])
  
  
  
-@router.get("", response_model=list[ClientListRead])
+@router.get("")
 def get_all_clients(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),

@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.database import get_db
-from app.services.export import export_products_excel
+from app.services.export import export_products_excel,get_master_filename
 from io import BytesIO
 
 router = APIRouter(prefix="/export", tags=["Export"])
@@ -16,9 +16,8 @@ def export_products(
     db: Session = Depends(get_db),
 ):
     wb = export_products_excel(db,client_id)
-    # client=
 
-    # filename =f{} 
+    filename=get_master_filename(db,client_id)
 
     stream = BytesIO()
     wb.save(stream)
@@ -27,5 +26,7 @@ def export_products(
     return StreamingResponse(
         stream,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=products.xlsx"},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
     )

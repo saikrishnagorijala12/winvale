@@ -17,7 +17,6 @@ router = APIRouter(prefix="/contracts", tags=["Contrats"])
 
 @router.get(
     "",
-    response_model=list[ClientContractRead],
 )
 def get_all_client_contracts(
     current_user=Depends(get_current_user),
