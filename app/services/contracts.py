@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
-from app.schemas.client_contract import ClientContractCreate
+from app.schemas.client_contract import ClientContractCreate, ClientContractUpdate
 from app.utils.name_to_id import get_status_id_by_name
 
 
@@ -28,6 +28,8 @@ def get_all_client_contracts(db: Session):
         "fob_term" : c.fob_term,
         "energy_star_compliance" : c.energy_star_compliance,
         "is_deleted" : c.is_deleted or False,
+        "created_time" : c.created_time,
+        "updated_time" : c.updated_time
         }
         
         for c in contacts
@@ -81,13 +83,13 @@ def update_contract_by_client_id(
     *,
     db: Session,
     client_id: int,
-    payload: ClientContractCreate,
+    payload: ClientContractUpdate
 ):
     contract = get_contract_by_client_id(db, client_id)
     if not contract:
         return None
 
-    contract.contract_officer_name = payload.contract_officer_name
+    contract.contract_officer_name = payl  oad.contract_officer_name
     contract.contract_officer_address = payload.contract_officer_address
     contract.contract_officer_city = payload.contract_officer_city
     contract.contract_officer_state = payload.contract_officer_state

@@ -67,7 +67,10 @@ def get_active_clients(db: Session):
         .all()
     )
 
-    
+    return [
+        serialize_client(c)
+        for c in clients
+    ]
  
 def get_client_by_id(db: Session, client_id: int) -> ClientProfile | None:
     return (

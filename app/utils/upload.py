@@ -20,7 +20,7 @@ s3_client = boto3.client(
 def gsa_upload(file,filename):
     # print(file)
     try:
-        file.file.seek(0)  # REQUIRED
+        file.file.seek(0) 
         s3_key = f"master_uploads/{filename}"
 
         s3_client.upload_fileobj(
@@ -34,7 +34,7 @@ def gsa_upload(file,filename):
 
         return {
         "s3_key": s3_key,
-        "url": f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}",
+        "url": s3_url,
         "size": file.size,
     }
     except ClientError as e:

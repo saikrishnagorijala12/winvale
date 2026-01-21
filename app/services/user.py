@@ -268,10 +268,11 @@ def delete_user(db: Session, user_id:int):
         return user
 
     user.is_deleted = True
+    user.is_active = False
     db.commit()
     db.refresh(user)
 
-    message = "User Deactivated sucessfully",
+    message = "User Deactivated sucessfully"
 
     return {
         "user_id" : user.user_id,

@@ -114,7 +114,7 @@ def get_all_users(
     return u.get_all_users(db)
 
 
-@router.delete("/{user_id}", response_model=UserRead)
+@router.delete("/{user_id}")
 def delete_user(
     user_id : int,
     current_user=Depends(get_current_user),
