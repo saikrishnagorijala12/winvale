@@ -15,7 +15,7 @@ class ClientContracts(Base):
     __tablename__ = "client_contracts"
 
     client_profile_id = Column(
-        Integer, primary_key=True, index=True, autoincrement=True
+        Integer, primary_key=True, autoincrement=True
     )
 
     contract_officer_name = Column(String(30))

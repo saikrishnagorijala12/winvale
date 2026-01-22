@@ -50,16 +50,17 @@ def create_client_contract(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    contract = cont.create_contract_by_client_id(
-        db=db,
-        client_id=client_id,
-        payload=payload,
-    )
-
-    if not contract:
-        raise HTTPException(status_code=404, detail="Client contract not found")
-
-    return contract
+    try:
+        return cont.create_contract_by_client_id(
+            db=db,
+            client_id=client_id,
+            payload=payload,
+        )
+    except cont.ContractAlreadyExsistsError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail = "Contract already Exsists for this client"
+        )
 
 @router.put(
     "/{client_id}",
@@ -89,7 +90,7 @@ def delete_client(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_admin(db, current_user["email"])
+    # require_admin(db, current_user["email"])
     return cont.delete_contract(db, client_id)
 
 

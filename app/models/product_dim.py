@@ -13,7 +13,7 @@ from app.models.base import Base
 class ProductDim(Base):
     __tablename__ = "product_dim"
 
-    dim_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    dim_id = Column(Integer, primary_key=True, autoincrement=True)
 
     product_id = Column(
         Integer,

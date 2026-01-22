@@ -3,11 +3,12 @@ from sqlalchemy import (
     TIMESTAMP, ForeignKey, text
 )
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 
 class CPLList(Base):
     __tablename__ = "cpl_list"
 
-    cpl_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    cpl_id = Column(Integer, primary_key=True, autoincrement=True)
 
     client_id = Column(
         Integer,
@@ -40,3 +41,5 @@ class CPLList(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
     )
+
+    client = relationship("ClientProfile", back_populates="cpl_items")

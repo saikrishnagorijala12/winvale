@@ -18,7 +18,7 @@ def get_role_id_by_name(db: Session, role_name: str) -> int:
 def get_status_id_by_name(db: Session, status_code: str) -> int:
     status = (
         db.query(Status)
-        .filter(func.lower(Status.status_code) == status_code.lower())
+        .filter(func.lower(Status.status) == status_code.lower())
         .first()
     )
     if not status:

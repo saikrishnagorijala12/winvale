@@ -45,7 +45,6 @@ class ProductHistory(Base):
     product_history_id = Column(
         Integer,
         primary_key=True,
-        index=True,
         autoincrement=True,
     )
 
@@ -121,9 +120,13 @@ class ProductHistory(Base):
         nullable=False,
     )
 
-    product = relationship(
-        "ProductMaster",
-        back_populates="histories",
+    # relations
+    client = relationship(
+        "ClientProfile",
+        back_populates="product_histories"
     )
 
-    client = relationship("ClientProfile")
+    product = relationship(
+        "ProductMaster",
+        back_populates="histories"
+    )

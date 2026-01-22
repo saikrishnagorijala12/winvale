@@ -94,20 +94,17 @@ class ProductMaster(Base):
         onupdate=text("CURRENT_TIMESTAMP")
     )
 
-    client = relationship(
-        "ClientProfile",
-        back_populates="products",
-    )
 
+    #relations
+    client = relationship("ClientProfile", back_populates="products")
     histories = relationship(
         "ProductHistory",
         back_populates="product",
-        cascade="all, delete-orphan",
+        cascade="all, delete-orphan"
     )
-
     dimension = relationship(
         "ProductDim",
         back_populates="product",
         uselist=False,
-        cascade="all, delete-orphan",
+        cascade="all, delete-orphan"
     )

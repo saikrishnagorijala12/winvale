@@ -36,7 +36,7 @@ def serialize_client(c: ClientProfile) -> dict:
         "contact_officer_zip": c.contact_officer_zip,
 
         "is_deleted": c.is_deleted,
-        "status": c.status_rel.status_code,
+        "status": c.status.status,
         "created_time": c.created_time,
         "updated_time": c.updated_time,
     }
@@ -58,11 +58,11 @@ def get_all_clients(db: Session):
 def get_active_clients(db: Session):
     clients = (
         db.query(ClientProfile)
-        .join(ClientProfile.status_rel)
-        .options(joinedload(ClientProfile.status_rel))
+        .join(ClientProfile.status)
+        .options(joinedload(ClientProfile.status))
         .filter(
             ClientProfile.is_deleted.is_(False),
-            Status.status_code == "approved"
+            Status.status == "approved"
         )
         .all()
     )
@@ -73,11 +73,11 @@ def get_active_clients(db: Session):
     ]
  
 def get_client_by_id(db: Session, client_id: int) -> ClientProfile | None:
-    return (
-        db.query(ClientProfile)
-        .filter(ClientProfile.client_id == client_id)
-        .first()
-    )
+    c = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
+    
+    
+    return serialize_client(c)
+
  
  
 def create_client_profile(db: Session, payload: ClientProfileCreate, current_user):
@@ -114,7 +114,7 @@ def create_client_profile(db: Session, payload: ClientProfileCreate, current_use
     status_value = data.pop("status")
 
     client = ClientProfile(**data)
-    client.status = get_status_id_by_name(db, status_value)
+    client.status_id = get_status_id_by_name(db, status_value)
 
     db.add(client)
     db.commit()
@@ -143,7 +143,7 @@ def update_client(
     update_data = data.model_dump(exclude_unset=True)
 
     if "status" in update_data:
-        client.status = get_status_id_by_name(db, update_data.pop("status"))
+        client.status_id = get_status_id_by_name(db, update_data.pop("status"))
 
     for field, value in update_data.items():
         setattr(client, field, value)
@@ -179,19 +179,19 @@ def update_client_status(
     target = "approved" if action == "approve" else "rejected"
     target_status_id = get_status_id_by_name(db, target)
 
-    if client.status == target_status_id:
+    if client.status_id == target_status_id:
         return client
  
     if action == "approve":
         rejected_status = (
             db.query(Status)
-            .filter(Status.status_code == "rejected")
+            .filter(Status.status == "rejected")
             .first()
         )
         if rejected_status and client.status == rejected_status.status_id:
             raise ValueError("Rejected client cannot be approved")
  
-    client.status = target_status_id
+    client.status_id = target_status_id
     db.commit()
     db.refresh(client)
  

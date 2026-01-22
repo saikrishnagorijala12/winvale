@@ -2,6 +2,7 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from app.models.client_profiles import ClientProfile
 from app.models.product_master import ProductMaster
 from app.utils.name_to_id import get_status_id_by_name
 from sqlalchemy.orm import joinedload
@@ -12,10 +13,12 @@ from sqlalchemy.orm import joinedload
 def get_all(db: Session):
     products = (
         db.query(ProductMaster)
+        .join(ClientProfile, ProductMaster.client)
         .options(
             joinedload(ProductMaster.client),
             joinedload(ProductMaster.dimension),
         )
+        .filter(ClientProfile.is_deleted.is_(False))
         .all()
     )
 
@@ -87,14 +90,18 @@ from fastapi import HTTPException, status
 
 def get_by_id(db: Session, product_id: int):
     product = (
-        db.query(ProductMaster)
-        .options(
-            joinedload(ProductMaster.client),
-            joinedload(ProductMaster.dimension),
-        )
-        .filter(ProductMaster.product_id == product_id)
-        .first()
+    db.query(ProductMaster)
+    .join(ClientProfile, ProductMaster.client)
+    .options(
+        joinedload(ProductMaster.client),
+        joinedload(ProductMaster.dimension),
     )
+    .filter(
+        ClientProfile.is_deleted.is_(False),
+        ProductMaster.product_id == product_id
+    )
+    .one_or_none()
+)
 
     if not product:
         raise HTTPException(
@@ -170,15 +177,21 @@ def get_by_id(db: Session, product_id: int):
 
 
 def get_by_client(db: Session, client_id: int):
+
     products = (
-        db.query(ProductMaster)
-        .options(
-            joinedload(ProductMaster.client),
-            joinedload(ProductMaster.dimension),
-        )
-        .filter(ProductMaster.client_id == client_id)
-        .all()
+    db.query(ProductMaster)
+    .join(ClientProfile, ProductMaster.client)
+    .options(
+        joinedload(ProductMaster.client),
+        joinedload(ProductMaster.dimension),
     )
+    .filter(
+        ClientProfile.is_deleted.is_(False),
+        ProductMaster.client_id == client_id
+    )
+    .all()
+)
+    
 
     if not products:
         raise HTTPException(

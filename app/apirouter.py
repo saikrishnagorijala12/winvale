@@ -5,6 +5,7 @@ from app.routes.upload import router as upload_routes
 from app.routes.contracts import router as contract_routes
 from app.routes.products import router as product_routes
 from app.routes.export import router as export_routes
+from app.routes.jobs import router as jobs_routes
 
 def register_routes(app):
     app.include_router(user_routes)
@@ -14,4 +15,4 @@ def register_routes(app):
     app.include_router(contract_routes)
     app.include_router(product_routes)
     app.include_router(export_routes)
-
+    app.include_router(jobs_routes)

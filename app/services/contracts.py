@@ -44,6 +44,9 @@ def get_contract_by_client_id(db: Session, client_id: int):
         .first()
     )
 
+class ContractAlreadyExsistsError(Exception):
+    pass
+
 def create_contract_by_client_id(
     *,
     db: Session,
@@ -52,7 +55,7 @@ def create_contract_by_client_id(
 ):
     existing = get_contract_by_client_id(db, client_id)
     if existing:
-        raise ValueError("Contract already exists for this client")
+        raise ContractAlreadyExsistsError()
 
     contract = ClientContracts(
         client_id=client_id,

@@ -15,7 +15,7 @@ from sqlalchemy.orm import relationship
 class ClientProfile(Base):
     __tablename__ = "client_profiles"
 
-    client_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    client_id = Column(Integer, primary_key=True, autoincrement=True)
 
     company_name = Column(String(30), nullable=False)
     company_email = Column(String(50), nullable=False, unique=True)
@@ -36,7 +36,7 @@ class ClientProfile(Base):
     contact_officer_zip = Column(String(7))
 
 
-    status = Column(
+    status_id = Column(
         Integer,
         ForeignKey("status.status_id", ondelete="RESTRICT"),
         nullable=False
@@ -55,14 +55,19 @@ class ClientProfile(Base):
         onupdate=text("CURRENT_TIMESTAMP")
     )
 
-    status_rel = relationship("Status", lazy="joined")
-    products = relationship(
-        "ProductMaster",
-        back_populates="client",
-        cascade="all, delete-orphan",
-    )
-    contracts = relationship(
-        "ClientContracts",
+    status = relationship(
+    "Status",
+    back_populates="clients",
+    lazy="joined"
+)
+    products = relationship("ProductMaster", back_populates="client", cascade="all, delete-orphan",)
+    contracts = relationship("ClientContracts", back_populates="client", cascade="all, delete-orphan",)
+    jobs = relationship("Job", back_populates="client")
+    uploads = relationship("FileUpload", back_populates="client")
+    actions = relationship("ModificationAction", back_populates="client")
+    cpl_items = relationship("CPLList", back_populates="client")
+    product_histories = relationship(
+        "ProductHistory",
         back_populates="client",
         cascade="all, delete-orphan"
     )

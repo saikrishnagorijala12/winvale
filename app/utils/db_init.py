@@ -30,9 +30,9 @@ def seed_static_data(db: Session):
     ]
 
     for status_code in statuses:
-        exists = db.query(Status).filter_by(status_code=status_code).first()
+        exists = db.query(Status).filter_by(status=status_code).first()
         if not exists:
-            db.add(Status(status_code=status_code))
+            db.add(Status(status=status_code))
 
     db.commit()
     db.close()

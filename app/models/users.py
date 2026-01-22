@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 class User(Base):
     __tablename__ = "users"
 
-    user_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(30), nullable=False)
     email = Column(String(50), nullable=False, unique=True)
     phone_no = Column(String(15), unique=True)
@@ -32,3 +32,6 @@ class User(Base):
     )
 
     role = relationship("Role", back_populates="users")
+    jobs = relationship("Job", back_populates="user")
+    uploads = relationship("FileUpload", back_populates="user", foreign_keys="FileUpload.user_id")
+    actions = relationship("ModificationAction", back_populates="user")

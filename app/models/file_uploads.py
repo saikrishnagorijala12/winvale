@@ -3,11 +3,12 @@ from sqlalchemy import (
     TIMESTAMP, ForeignKey, text
 )
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 
 class FileUpload(Base):
     __tablename__ = "file_uploads"
 
-    upload_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    upload_id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(
         Integer,
@@ -50,3 +51,6 @@ class FileUpload(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
     )
+
+    user = relationship("User", back_populates="uploads", foreign_keys=[user_id])
+    client = relationship("ClientProfile", back_populates="uploads")

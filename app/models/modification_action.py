@@ -3,11 +3,12 @@ from sqlalchemy import (
     TIMESTAMP, ForeignKey, text
 )
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 
 class ModificationAction(Base):
     __tablename__ = "modification_action"
 
-    action_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    action_id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(
         Integer,
@@ -47,3 +48,7 @@ class ModificationAction(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=text("CURRENT_TIMESTAMP")
     )
+
+    user = relationship("User", back_populates="actions")
+    client = relationship("ClientProfile", back_populates="actions")
+    job = relationship("Job")
