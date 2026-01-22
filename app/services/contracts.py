@@ -12,6 +12,7 @@ def get_all_client_contracts(db: Session):
     return [
         # contract = c.ClientContracts
     {
+        "client_id" : c.client_id,
         "client" : c.client.company_name,
         "contract_number" : c.contract_number,
         "contract_officer_name" : c.contract_officer_name,
@@ -89,7 +90,7 @@ def update_contract_by_client_id(
     if not contract:
         return None
 
-    contract.contract_officer_name = payl  oad.contract_officer_name
+    contract.contract_officer_name = payload.contract_officer_name
     contract.contract_officer_address = payload.contract_officer_address
     contract.contract_officer_city = payload.contract_officer_city
     contract.contract_officer_state = payload.contract_officer_state
