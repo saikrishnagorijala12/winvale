@@ -11,4 +11,5 @@ phases:
   build:
     commands:
       - export PYTHONPATH=$CODEBUILD_SRC_DIR
+      - export DB_URL=sqlite:///./ci.db
       - pytest
