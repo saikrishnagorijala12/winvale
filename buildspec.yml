@@ -10,4 +10,5 @@ phases:
 
   build:
     commands:
+      - export PYTHONPATH=$CODEBUILD_SRC_DIR
       - pytest
