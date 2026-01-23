@@ -5,20 +5,9 @@ phases:
     runtime-versions:
       python: 3.12
     commands:
-      - echo "Installing dependencies"
       - pip install --upgrade pip
       - pip install -r requirements.txt
 
-  pre_build:
-    commands:
-      - export PYTHONPATH=$CODEBUILD_SRC_DIR
-      - pytest || echo "No tests found, skipping"
-
   build:
     commands:
-      - echo "Build step"
-      - uvicorn main:app --host 0.0.0.0 --port 8000
-
-artifacts:
-  files:
-    - '**/*'
+      - pytest

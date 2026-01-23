@@ -21,6 +21,42 @@ def create_job(
 
 @router.get("")
 def list_jobs(
+    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return j.list_jobs(db)
+
+
+@router.get("/{job_id}")
+def list_jobs_by_id(
+    job_id:int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return j.list_jobs_by_id(db, job_id,current_user["email"])
+
+
+@router.post("/{job_id}/approve")
+def approve_job(
+    job_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return j.approve_job(
+        db=db,
+        job_id=job_id,
+        user_email=current_user["email"]
+    )
+
+
+@router.post("/{job_id}/reject")
+def reject_job(
+    job_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return j.reject_job(
+        db=db,
+        job_id=job_id,
+        user_email=current_user["email"]
+    )
