@@ -5,6 +5,7 @@ from sqlalchemy import (
 from app.models.base import Base
 from sqlalchemy.orm import relationship
 
+
 class ModificationAction(Base):
     __tablename__ = "modification_action"
 
@@ -28,6 +29,12 @@ class ModificationAction(Base):
         nullable=False
     )
 
+    product_id = Column(
+        Integer,
+        ForeignKey("product_master.product_id", ondelete="SET NULL"),
+        nullable=True
+    )
+
     action_type = Column(Text, nullable=False)
 
     old_price = Column(Numeric(10, 2))
@@ -49,6 +56,11 @@ class ModificationAction(Base):
         onupdate=text("CURRENT_TIMESTAMP")
     )
 
+
     user = relationship("User", back_populates="actions")
     client = relationship("ClientProfile", back_populates="actions")
-    job = relationship("Job")
+    job = relationship(
+        "Job",
+        back_populates="modification_actions"
+    )
+    product = relationship("ProductMaster", back_populates="modification_actions")

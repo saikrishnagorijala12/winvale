@@ -42,3 +42,8 @@ class Job(Base):
     user = relationship("User", back_populates="jobs")
     client = relationship("ClientProfile", back_populates="jobs")
     status = relationship("Status", back_populates="jobs")
+    modification_actions = relationship(
+        "ModificationAction",
+        back_populates="job",
+        cascade="all, delete-orphan"
+    )

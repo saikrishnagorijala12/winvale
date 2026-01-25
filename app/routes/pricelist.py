@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth.dependencies import get_current_user
-from app.services.pricelist import upload_cpl
+from app.services.pricelist import upload_cpl_service
 
 router = APIRouter(prefix="/cpl", tags=["CPL"])
 
@@ -18,9 +18,10 @@ def upload_cpl(
     if not file.filename.lower().endswith(".xlsx"):
         raise HTTPException(400, "Only Excel (.xlsx) allowed")
 
-    return upload_cpl(
+    return upload_cpl_service(
         db=db,
         client_id=client_id,
         file=file,
         user_email=current_user["email"],
+        
     )

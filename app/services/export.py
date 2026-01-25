@@ -1,8 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from openpyxl import Workbook
-from datetime import datetime, timezone
-from app.utils.gsa_header import GSA_HEADERS
 from app.models.product_master import ProductMaster
+from datetime import datetime, timezone
 from app.models.client_profiles import ClientProfile
 
 
@@ -18,7 +17,56 @@ def export_products_excel(db: Session, client_id: int):
     ws = wb.active
     ws.title = "Products"
 
-    ws.append(GSA_HEADERS)
+    # Header MUST match import header exactly
+    ws.append([
+        "item_type",
+        "manufacturer",
+        "manufacturer_part_number",
+        "vendor_part_number",
+        "sin",
+        "item_name",
+        "item_description",
+        "recycled_content_percent",
+        "uom",
+        "quantity_per_pack",
+        "quantity_unit_uom",
+        "commercial_price",
+        "mfc_name",
+        "mfc_price",
+        "govt_price_no_fee",
+        "govt_price_with_fee",
+        "country_of_origin",
+        "delivery_days",
+        "lead_time_code",
+        "fob_us",
+        "fob_ak",
+        "fob_hi",
+        "fob_pr",
+        "nsn",
+        "upc",
+        "unspsc",
+        "sale_price_with_fee",
+        "start_date",
+        "stop_date",
+        "default_photo",
+        "photo_2",
+        "photo_3",
+        "photo_4",
+        "product_url",
+        "warranty_period",
+        "warranty_unit_of_time",
+        "length",
+        "width",
+        "height",
+        "physical_uom",
+        "weight_lbs",
+        "product_info_code",
+        "url_508",
+        "hazmat",
+        "dealer_cost",
+        "mfc_markup_percentage",
+        "govt_markup_percentage",
+    ])
 
     for p in products:
         d = p.dimension
@@ -27,7 +75,7 @@ def export_products_excel(db: Session, client_id: int):
             p.item_type,
             p.manufacturer,
             p.manufacturer_part_number,
-            p.client_part_number,
+            p.vendor_part_number,
             p.sin,
             p.item_name,
             p.item_description,
@@ -35,55 +83,51 @@ def export_products_excel(db: Session, client_id: int):
             p.uom,
             p.quantity_per_pack,
             p.quantity_unit_uom,
-            float(p.commercial_list_price) if p.commercial_list_price is not None else None,
-            None,
-            None,
-            None,
-            None,
+            float(p.commercial_price) if p.commercial_price is not None else None,
+            p.mfc_name,
+            float(p.mfc_price) if p.mfc_price is not None else None,
+            float(p.govt_price_no_fee) if p.govt_price_no_fee is not None else None,
+            float(p.govt_price_with_fee) if p.govt_price_with_fee is not None else None,
             p.country_of_origin,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
+            p.delivery_days,
+            p.lead_time_code,
+            p.fob_us,
+            p.fob_ak,
+            p.fob_hi,
+            p.fob_pr,
             p.nsn,
             p.upc,
             p.unspsc,
-            None,
-            None,
-            None,
-            d.photo_path if d and d.photo_path else None,
-            None,
-            None,
-            None,
+            float(p.sale_price_with_fee) if p.sale_price_with_fee is not None else None,
+            p.start_date,
+            p.stop_date,
+            p.default_photo,
+            p.photo_2,
+            p.photo_3,
+            p.photo_4,
             p.product_url,
-            d.warranty_period if d and d.warranty_period is not None else None,
-            None,
+            p.warranty_period,
+            p.warranty_unit_of_time,
             float(d.length) if d and d.length is not None else None,
             float(d.width) if d and d.width is not None else None,
             float(d.height) if d and d.height is not None else None,
-            d.physical_uom if d and d.physical_uom else None,
+            d.physical_uom if d else None,
             float(d.weight_lbs) if d and d.weight_lbs is not None else None,
             p.product_info_code,
             p.url_508,
             p.hazmat,
-            None,
-            None,
-            None,
+            float(p.dealer_cost) if p.dealer_cost is not None else None,
+            float(p.mfc_markup_percentage) if p.mfc_markup_percentage is not None else None,
+            float(p.govt_markup_percentage) if p.govt_markup_percentage is not None else None,
         ])
-
 
     return wb
 
-def get_master_filename(db:Session, client_id:int):
+
+def get_master_filename(db: Session, client_id: int):
     client = db.query(ClientProfile).filter_by(client_id=client_id).first()
 
-    client_name= client.company_name
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-
-    filename = f"{client_name}_master_{date_str}.xlsx"
+    filename = f"{client.company_name}_master_{date_str}.xlsx"
 
     return filename
-    

@@ -4,8 +4,8 @@ from fastapi import HTTPException
 from app.models import Job, User, ClientProfile
 from app.utils.name_to_id import get_status_id_by_name
 
-def create_job(db: Session, client_id: int, user_email: str):
-    user = db.query(User).filter_by(email=user_email).first()
+def create_job(db: Session, client_id: int, email: str):
+    user = db.query(User).filter_by(email=email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
 
@@ -45,6 +45,7 @@ def list_jobs(db: Session):
             "user_id": j.user_id,
             "user" : j.user.name,
             "status_id": j.status.status,
+            "modifications_actions" : j.modification_actions,
             "created_time": j.created_time,
             "updated_time": j.updated_time
         }
@@ -71,6 +72,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str):
         "client" : job.client.company_name,
         "user_id": job.user_id,
         "user" : job.user.name,
+        "modifications_actions" : job.modification_actions,
         "status": job.status.status,
         "created_time": job.created_time
     }
@@ -96,6 +98,7 @@ def approve_job(db: Session, job_id: int, user_email: str):
     return {
         "job_id": job.job_id,
         "status": job.status.status,
+        
         "message": "Job approved successfully"
     }
 

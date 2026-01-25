@@ -25,5 +25,5 @@ async def upload_products(
         db=db,
         client_id=client_id,
         file=file,
-        user = current_user['email']
-    )       
+        user_email=current_user["email"],
+    )
