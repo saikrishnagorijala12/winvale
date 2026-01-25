@@ -1,14 +1,38 @@
-version: 0.2
+# version: 0.2
 
-phases:
-  install:
-    runtime-versions:
-      python: 3.12
-    commands:
-      - pip install --upgrade pip
-      - pip install -r requirements.txt
+# phases:
+#   install:
+#     commands:
+#       - pip install -r requirements.txt
 
-  build:
-    commands:
-      - export PYTHONPATH=$CODEBUILD_SRC_DIR
-      - pytest
+#   pre_build:
+#     commands:
+#       - alembic upgrade head
+#       - aws ecr get-login-password --region $AWS_REGION |
+#         docker login --username AWS --password-stdin $ECR_URI
+
+#   build:
+#     commands:
+#       - docker build -t winvale-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION .
+#       - docker tag winvale-backend:$CODEBUILD_RESOLVED_SOURCE_VERSION $ECR_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+
+#   post_build:
+#     commands:
+#       - docker push $ECR_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+
+
+
+# version: 0.2
+
+# phases:
+#   install:
+#     runtime-versions:
+#       python: 3.12
+#     commands:
+#       - pip install --upgrade pip
+#       - pip install -r requirements.txt
+
+#   build:
+#     commands:
+#       - export PYTHONPATH=$CODEBUILD_SRC_DIR
+#       - pytest
