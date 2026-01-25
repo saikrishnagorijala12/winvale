@@ -1,6 +1,0 @@
-[
-  {
-    "name": "winvale-backend",
-    "imageUri": "<ECR_URI>:<IMAGE_TAG>"
-  }
-]
