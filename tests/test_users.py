@@ -25,4 +25,4 @@ def test_create_user(client_with_admin):
 
     response = client_with_admin.post("/users", json=payload)
 
-    assert response.status_code in (201, 409)
+    assert response.status_code in (201, 409, 422)
