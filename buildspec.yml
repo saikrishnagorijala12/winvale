@@ -19,6 +19,11 @@ phases:
   post_build:
     commands:
       - docker push $ECR_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - printf '[{"name":"winvale-backend","imageUri":"%s"}]' \
+        $ECR_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION > imagedefinitions.json
+  artifacts:
+    files:
+      - imagedefinitions.json
 
 
 
