@@ -43,3 +43,7 @@ class CPLList(Base):
     )
 
     client = relationship("ClientProfile", back_populates="cpl_items")
+    modification_actions = relationship(
+    "ModificationAction",
+    back_populates="cpl_item"
+)

@@ -1,5 +1,5 @@
 from io import BytesIO
-from datetime import datetime, timezone
+from datetime import datetime
 import pandas as pd
 from sqlalchemy.orm import Session
 
@@ -8,12 +8,8 @@ from app.models.client_contracts import ClientContracts
 from app.models.product_master import ProductMaster
 from app.models.product_history import ProductHistory
 from app.models.product_dim import ProductDim
-from app.models.users import User
 from app.models.file_uploads import FileUpload
-from app.utils import upload as s3
-
-import re
-import os
+from app.utils import s3_upload as s3
 
 from app.utils.upload_helper import (
     MASTER_FIELDS,
@@ -27,18 +23,12 @@ from app.utils.upload_helper import (
 
 def upload_products(db: Session, client_id: int, file, user_email: str):
 
-    # -------------------------
-    # Guard rails
-    # -------------------------
     if not db.query(ClientProfile).filter_by(client_id=client_id).first():
         raise ValueError("Invalid client")
 
     if not db.query(ClientContracts).filter_by(client_id=client_id).first():
         raise ValueError("Invalid contract")
 
-    # -------------------------
-    # Read Excel
-    # -------------------------
     raw = pd.read_excel(BytesIO(file.file.read()), header=None)
     raw = raw.drop(index=0).reset_index(drop=True)
     raw.columns = raw.iloc[0]
@@ -48,9 +38,6 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
     inserted = updated = skipped = 0
 
-    # -------------------------
-    # Process rows
-    # -------------------------
     for _, row in df.iterrows():
 
         row_data = {
@@ -78,21 +65,28 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
             .first()
         )
 
-        # =================================================
-        # INSERT
-        # =================================================
+        # ---------------- INSERT ----------------
         if not product:
+
+            master_payload = {
+                f: row_data.get(f)
+                for f in MASTER_FIELDS
+                if row_data.get(f) is not None
+            }
+
             product = ProductMaster(
                 client_id=client_id,
                 row_signature=identity_sig,
-                **{f: row_data.get(f) for f in MASTER_FIELDS},
+                **master_payload,
             )
+
             db.add(product)
             db.flush()
 
             history_payload = {
                 f: row_data.get(f)
                 for f in HISTORY_FIELDS
+                if row_data.get(f) is not None
             }
             history_payload["currency"] = history_payload.get("currency") or "USD"
 
@@ -106,19 +100,23 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
                 )
             )
 
+            dim_payload = {
+                f: row_data.get(f)
+                for f in DIM_FIELDS
+                if row_data.get(f) is not None
+            }
+
             db.add(
                 ProductDim(
                     product_id=product.product_id,
-                    **{f: row_data.get(f) for f in DIM_FIELDS},
+                    **dim_payload,
                 )
             )
 
             inserted += 1
             continue
 
-        # =================================================
-        # UPDATE
-        # =================================================
+        # ---------------- UPDATE ----------------
         current = (
             db.query(ProductHistory)
             .filter_by(product_id=product.product_id, is_current=True)
@@ -136,6 +134,7 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         history_payload = {
             f: row_data.get(f)
             for f in HISTORY_FIELDS
+            if row_data.get(f) is not None
         }
         history_payload["currency"] = history_payload.get("currency") or "USD"
 
@@ -150,28 +149,32 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         )
 
         for f in MASTER_FIELDS:
-            setattr(product, f, row_data.get(f))
+            value = row_data.get(f)
+            if value is not None:
+                setattr(product, f, value)
 
         product.row_signature = identity_sig
 
         dim = product.dimension
         if not dim:
-            db.add(
-                ProductDim(
-                    product_id=product.product_id,
-                    **{f: row_data.get(f) for f in DIM_FIELDS},
-                )
-            )
+            dim_payload = {
+                f: row_data.get(f)
+                for f in DIM_FIELDS
+                if row_data.get(f) is not None
+            }
+            db.add(ProductDim(product_id=product.product_id, **dim_payload))
         else:
             for f in DIM_FIELDS:
-                setattr(dim, f, row_data.get(f))
+                value = row_data.get(f)
+                if value is not None:
+                    setattr(dim, f, value)
 
         updated += 1
 
     db.commit()
 
     if inserted or updated:
-        save_uploaded_file(db, client_id, file, user_email)
+        s3.save_uploaded_file(db, client_id, file, user_email, "gsa_upload")
 
     return {
         "inserted": inserted,
@@ -179,38 +182,3 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         "skipped": skipped,
         "update_status": bool(inserted or updated),
     }
-
-def clean(value: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9_-]", "_", value.strip())
-
-
-def save_uploaded_file(db: Session, client_id: int, file, user_email: str):
-    client = db.query(ClientProfile).filter_by(client_id=client_id).first()
-    user = db.query(User).filter_by(email=user_email).first()
-
-    _, ext = os.path.splitext(file.filename)
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-
-    filename = (
-        f"{clean(client.company_name)}_"
-        f"{date_str}_"
-        f"{clean(user.name)}"
-        f"{ext}"
-    )
-
-    result = s3.gsa_upload(file, filename)
-
-    db.add(
-        FileUpload(
-            user_id=user.user_id,
-            uploaded_by=user.user_id,
-            client_id=client_id,
-            original_filename=file.filename,
-            s3_saved_filename=filename,
-            s3_saved_path=result["url"],
-            file_size=result["size"],
-        )
-    )
-
-    db.commit()
-    return result

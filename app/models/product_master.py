@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Boolean,
     Column,
     Integer,
     String,
@@ -29,9 +30,6 @@ class ProductMaster(Base):
         Index("ix_product_master_signature", "row_signature"),
     )
 
-    # -------------------------------------------------
-    # Identity
-    # -------------------------------------------------
     product_id = Column(Integer, primary_key=True, autoincrement=True)
 
     client_id = Column(
@@ -109,6 +107,7 @@ class ProductMaster(Base):
     dealer_cost = Column(Numeric(12, 2))
     mfc_markup_percentage = Column(Numeric(5, 2))
     govt_markup_percentage = Column(Numeric(5, 2))
+    is_deleted = Column(Boolean, default=False)
 
     row_signature = Column(String(64), nullable=False)
 

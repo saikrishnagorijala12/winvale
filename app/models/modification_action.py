@@ -29,6 +29,12 @@ class ModificationAction(Base):
         nullable=False
     )
 
+    cpl_id = Column(
+        Integer,
+        ForeignKey("cpl_list.cpl_id", ondelete="SET NULL"),
+        nullable=True
+    )
+
     product_id = Column(
         Integer,
         ForeignKey("product_master.product_id", ondelete="SET NULL"),
@@ -64,3 +70,5 @@ class ModificationAction(Base):
         back_populates="modification_actions"
     )
     product = relationship("ProductMaster", back_populates="modification_actions")
+    cpl_item = relationship("CPLList", back_populates="modification_actions")
+

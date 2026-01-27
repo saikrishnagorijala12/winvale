@@ -11,11 +11,8 @@ from app.models import (
     ModificationAction,
 )
 from app.services.jobs import create_job
+from app.utils import s3_upload as s3
 
-
-# -------------------------------------------------
-# Helpers
-# -------------------------------------------------
 
 def normalize_str(v):
     if v is None:
@@ -44,7 +41,6 @@ def parse_price(value):
     if value is None:
         return None
 
-    # Pandas NaN
     try:
         if pd.isna(value):
             return None
@@ -55,7 +51,6 @@ def parse_price(value):
     if not s:
         return None
 
-    # Remove currency symbols and commas
     s = s.replace("$", "").replace(",", "")
 
     try:
@@ -63,16 +58,12 @@ def parse_price(value):
     except (InvalidOperation, ValueError):
         return None
 
-    # Kill NaN / Infinity
     if not d.is_finite():
         return None
 
     return d.quantize(Decimal("0.01"))
 
 
-# -------------------------------------------------
-# CPL Upload Service
-# -------------------------------------------------
 
 def upload_cpl_service(
     db: Session,
@@ -81,7 +72,6 @@ def upload_cpl_service(
     user_email: str,
 ):
 
-    # Create job
     job = create_job(db, client_id, user_email)
     job_id = job["job_id"]
 
@@ -89,12 +79,8 @@ def upload_cpl_service(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
 
-    # -------------------------------------------------
-    # Read CPL Excel
-    # -------------------------------------------------
     df = pd.read_excel(BytesIO(file.file.read()), header=None)
 
-    # CPL format (fragile by definition)
     df.columns = df.iloc[4]
     df = df.iloc[6:].reset_index(drop=True)
 
@@ -111,14 +97,9 @@ def upload_cpl_service(
     if not required_cols.issubset(df.columns):
         raise HTTPException(status_code=400, detail="Invalid CPL file format")
 
-    # -------------------------------------------------
-    # Clear existing CPL
-    # -------------------------------------------------
     db.query(CPLList).filter_by(client_id=client_id).delete()
 
-    # -------------------------------------------------
-    # Load CPL rows
-    # -------------------------------------------------
+
     cpl_map = {}
 
     for _, row in df.iterrows():
@@ -136,9 +117,7 @@ def upload_cpl_service(
             "price": price,
             "description": desc,
         }
-
-        db.add(
-            CPLList(
+        cpl=CPLList(
                 client_id=client_id,
                 manufacturer_name=row["manufacturer"],
                 manufacturer_part_number=row["part_number"],
@@ -147,13 +126,19 @@ def upload_cpl_service(
                 commercial_list_price=price,
                 uploaded_by=user.user_id,
             )
-        )
+
+        db.add(cpl)
+        cpl_map[key] = {
+        "cpl": cpl,          
+        "price": price,
+        "description": desc,
+    }
+
 
     db.flush()
+    cpl_id = cpl_map[key]["cpl"].cpl_id
 
-    # -------------------------------------------------
-    # Load products
-    # -------------------------------------------------
+
     products = (
         db.query(ProductMaster)
         .filter_by(client_id=client_id)
@@ -169,9 +154,6 @@ def upload_cpl_service(
         if key:
             product_map[key] = p
 
-    # -------------------------------------------------
-    # Compare CPL vs ProductMaster
-    # -------------------------------------------------
     summary = {
         "new_products": 0,
         "removed_products": 0,
@@ -186,9 +168,7 @@ def upload_cpl_service(
     for key, cpl in cpl_map.items():
         product = product_map.get(key)
 
-        # -------------------------
-        # NEW PRODUCT
-        # -------------------------
+
         if not product:
             summary["new_products"] += 1
             db.add(
@@ -196,6 +176,7 @@ def upload_cpl_service(
                     user_id=user.user_id,
                     client_id=client_id,
                     job_id=job_id,
+                    cpl_id=cpl_id,
                     product_id=None,
                     action_type="NEW_PRODUCT",
                     old_price=None,
@@ -218,9 +199,6 @@ def upload_cpl_service(
         price_changed = old_price != new_price
         desc_changed = old_desc != new_desc
 
-        # -------------------------
-        # PRICE CHANGE (SAFE)
-        # -------------------------
         if price_changed:
             if old_price is None and new_price is not None:
                 action = "PRICE_INCREASE"
@@ -230,7 +208,7 @@ def upload_cpl_service(
                 action = "PRICE_DECREASE"
                 summary["price_decrease"] += 1
 
-            else:  # both not None
+            else:  
                 if new_price > old_price:
                     action = "PRICE_INCREASE"
                     summary["price_increase"] += 1
@@ -251,6 +229,7 @@ def upload_cpl_service(
                 user_id=user.user_id,
                 client_id=client_id,
                 job_id=job_id,
+                cpl_id=cpl_id,
                 product_id=product.product_id,
                 action_type=action,
                 old_price=old_price,
@@ -261,9 +240,6 @@ def upload_cpl_service(
             )
         )
 
-    # -------------------------------------------------
-    # REMOVED PRODUCTS
-    # -------------------------------------------------
     for key, product in product_map.items():
         if key not in processed_keys:
             summary["removed_products"] += 1
@@ -272,6 +248,7 @@ def upload_cpl_service(
                     user_id=user.user_id,
                     client_id=client_id,
                     job_id=job_id,
+                    cpl_id=cpl_id,
                     product_id=product.product_id,
                     action_type="REMOVED_PRODUCT",
                     old_price=product.commercial_price,
@@ -283,6 +260,7 @@ def upload_cpl_service(
             )
 
     db.commit()
+    s3.save_uploaded_file(db, client_id, file, user_email, "cpl_upload")
 
     return {
         "job_id": job_id,

@@ -1,8 +1,18 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-
-from app.models import Job, User, ClientProfile
+from app.models import (
+    Job,
+    User,
+    ProductMaster,
+    ProductHistory,
+    ModificationAction,
+    ClientProfile
+)
 from app.utils.name_to_id import get_status_id_by_name
+from datetime import datetime
+from app.utils.scd_helper import create_product_history_snapshot
+from app.utils.upload_helper import identity_signature,history_signature
+
 
 def create_job(db: Session, client_id: int, email: str):
     user = db.query(User).filter_by(email=email).first()
@@ -80,27 +90,88 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str):
 def approve_job(db: Session, job_id: int, user_email: str):
     job = db.query(Job).filter_by(job_id=job_id).first()
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(404, "Job not found")
 
     pending_id = get_status_id_by_name(db, "pending")
     approved_id = get_status_id_by_name(db, "approved")
 
     if job.status_id != pending_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Only pending jobs can be approved"
+        raise HTTPException(400, "Only pending jobs can be approved")
+
+    user = db.query(User).filter_by(email=user_email).first()
+    if not user:
+        raise HTTPException(401, "Invalid user")
+
+    actions = (
+        db.query(ModificationAction)
+        .filter_by(job_id=job_id)
+        .all()
+    )
+
+    if not actions:
+        raise HTTPException(400, "No modifications found for job")
+
+    client_id = job.client_id
+    now = datetime.utcnow()
+
+    for action in actions:
+        product = (
+            db.query(ProductMaster)
+            .filter_by(product_id=action.product_id)
+            .first()
+        )
+
+        if not product:
+            raise HTTPException(
+                500,
+                f"Product {action.product_id} not found"
+            )
+
+        current_history = (
+            db.query(ProductHistory)
+            .filter_by(
+                product_id=product.product_id,
+                is_current=True,
+            )
+            .first()
+        )
+
+        if current_history:
+            current_history.is_current = False
+            current_history.effective_end_date = now
+
+        if action.action_type == "REMOVED_PRODUCT":
+            product.is_deleted = True
+            db.add(
+                create_product_history_snapshot(
+                    product,
+                    client_id,
+                    is_current=False,
+                    end_date=now,
+                )
+            )
+            continue
+
+        product.commercial_price = action.new_price
+        product.item_description = action.new_description
+
+        db.add(
+            create_product_history_snapshot(
+                product,
+                client_id,
+                is_current=True,
+            )
         )
 
     job.status_id = approved_id
     db.commit()
-    db.refresh(job)
 
     return {
         "job_id": job.job_id,
-        "status": job.status.status,
-        
-        "message": "Job approved successfully"
+        "status": "approved",
+        "message": "Job approved successfully",
     }
+
 
 
 def reject_job(db: Session, job_id: int, user_email: str):
