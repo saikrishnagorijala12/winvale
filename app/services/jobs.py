@@ -47,45 +47,82 @@ def list_jobs(db: Session):
         .all()
     )
 
-    return [
-        {
+    response = []
+
+    for j in jobs:
+        actions = []
+
+        for a in j.modification_actions:
+            actions.append({
+                "action_id": a.action_id,
+                "action_type": a.action_type,
+                "product_id": a.product_id,
+                "product_name": a.product.item_name if a.product else None,
+                "manufacturer_part_number": (
+                    a.product.manufacturer_part_number if a.product else None
+                ),
+                "old_price": a.old_price,
+                "new_price": a.new_price,
+                "old_description" : a.old_description,
+                "new_description" : a.new_description,
+                "created_time": a.created_time,
+            })
+
+        response.append({
             "job_id": j.job_id,
             "client_id": j.client_id,
-            "client" : j.client.company_name,
+            "client": j.client.company_name,
             "user_id": j.user_id,
-            "user" : j.user.name,
-            "status_id": j.status.status,
-            "modifications_actions" : j.modification_actions,
+            "user": j.user.name,
+            "status": j.status.status,
+            "modifications_actions": actions,
             "created_time": j.created_time,
-            "updated_time": j.updated_time
-        }
-        for j in jobs
-    ]
+            "updated_time": j.updated_time,
+        })
+
+    return response
+
 
 def list_jobs_by_id(db: Session, job_id: int, user_email: str):
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
+
     job = db.query(Job).filter_by(job_id=job_id).one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    client_id = job.client_id
 
-    client = db.query(ClientProfile).filter_by(client_id=client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
+    actions = []
+
+    for a in job.modification_actions:
+        actions.append({
+            "action_id": a.action_id,
+            "action_type": a.action_type,
+            "product_id": a.product_id,
+            "product_name": a.product.item_name if a.product else None,
+            "manufacturer_part_number": (
+                a.product.manufacturer_part_number if a.product else None
+            ),
+            "old_price": a.old_price,
+            "new_price": a.new_price,
+            "old_description" : a.old_description,
+            "new_description" : a.new_description,
+            "number_of_items_impacted": a.number_of_items_impacted,
+            "created_time": a.created_time,
+        })
 
     return {
         "job_id": job.job_id,
         "client_id": job.client_id,
-        "client" : job.client.company_name,
+        "client": job.client.company_name,
         "user_id": job.user_id,
-        "user" : job.user.name,
-        "modifications_actions" : job.modification_actions,
+        "user": job.user.name,
         "status": job.status.status,
-        "created_time": job.created_time
+        "modifications_actions": actions,
+        "created_time": job.created_time,
+        "updated_time": job.updated_time,
     }
+
 
 def approve_job(db: Session, job_id: int, user_email: str):
     job = db.query(Job).filter_by(job_id=job_id).first()
