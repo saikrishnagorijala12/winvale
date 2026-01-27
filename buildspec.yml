@@ -1,0 +1,27 @@
+
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo "Install phase – nothing needed"
+
+  pre_build:
+    commands:
+      - echo "Pre-build phase – validating files"
+      - test -f Dockerfile || (echo "Dockerfile missing" && exit 1)
+
+  build:
+    commands:
+      - echo "Build phase – source will be passed to Elastic Beanstalk"
+
+  post_build:
+    commands:
+      - echo "Build completed successfully on $(date)"
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: no
