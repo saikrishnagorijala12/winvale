@@ -19,6 +19,7 @@ class ClientNotFoundError(Exception):
 def serialize_client(c: ClientProfile) -> dict:
     return {
         "client_id": c.client_id,
+        "contract_number": c.contracts.contract_number if c.contracts else None,
         "company_name": c.company_name,
         "company_email": c.company_email,
         "company_phone_no": c.company_phone_no,

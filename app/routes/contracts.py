@@ -59,7 +59,7 @@ def create_client_contract(
     except cont.ContractAlreadyExsistsError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail = "Contract already Exsists for this client"
+            detail = "Contract already exist for this client"
         )
 
 @router.put(
