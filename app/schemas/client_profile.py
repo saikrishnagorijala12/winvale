@@ -42,6 +42,7 @@ class ClientProfileCreate(ClientProfileBase):
  
 class ClientProfileRead(ClientProfileBase):
     client_id: int
+    contract_number: Optional[str] = None
     status: str
     is_deleted: bool
     created_time: datetime

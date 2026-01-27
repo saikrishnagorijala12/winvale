@@ -13,6 +13,7 @@ def get_all_client_contracts(db: Session):
         # contract = c.ClientContracts
     {
         "client_id" : c.client_id,
+        "contract_number": c.contracts.contract_number if c.contracts else None,
         "client" : c.client.company_name,
         "contract_number" : c.contract_number,
         "contract_officer_name" : c.contract_officer_name,

@@ -61,7 +61,7 @@ class ClientProfile(Base):
     lazy="joined"
 )
     products = relationship("ProductMaster", back_populates="client", cascade="all, delete-orphan",)
-    contracts = relationship("ClientContracts", back_populates="client", cascade="all, delete-orphan",)
+    contracts = relationship("ClientContracts", back_populates="client",uselist=False, cascade="all, delete-orphan",)
     jobs = relationship("Job", back_populates="client")
     uploads = relationship("FileUpload", back_populates="client")
     actions = relationship("ModificationAction", back_populates="client")
