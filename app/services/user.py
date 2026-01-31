@@ -70,8 +70,8 @@ def update_user(
         return None
 
     user.name = name
-    if phone_no is not None:
-        user.phone_no = phone_no
+    # if phone_no is not None:
+    user.phone_no = phone_no
 
     db.commit()
     db.refresh(user)

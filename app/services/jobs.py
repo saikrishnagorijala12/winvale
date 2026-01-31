@@ -46,28 +46,36 @@ def list_jobs(db: Session):
         .order_by(Job.created_time.desc())
         .all()
     )
-
+ 
     response = []
-
+ 
     for j in jobs:
         actions = []
-
         for a in j.modification_actions:
+            p_name = None
+            p_number = None
+            
+            if a.product:
+                p_name = a.product.item_name
+                p_number = a.product.manufacturer_part_number
+            elif a.cpl_item:
+                p_name = a.cpl_item.item_name
+                p_number = a.cpl_item.manufacturer_part_number
+ 
             actions.append({
                 "action_id": a.action_id,
                 "action_type": a.action_type,
                 "product_id": a.product_id,
-                "product_name": a.product.item_name if a.product else None,
-                "manufacturer_part_number": (
-                    a.product.manufacturer_part_number if a.product else None
-                ),
+                "product_name": p_name,
+                "manufacturer_part_number": p_number,
                 "old_price": a.old_price,
                 "new_price": a.new_price,
-                "old_description" : a.old_description,
-                "new_description" : a.new_description,
+                "old_description": a.old_description,
+                "new_description": a.new_description,
+                "number_of_items_impacted": a.number_of_items_impacted,
                 "created_time": a.created_time,
             })
-
+        
         response.append({
             "job_id": j.job_id,
             "client_id": j.client_id,
@@ -79,7 +87,7 @@ def list_jobs(db: Session):
             "created_time": j.created_time,
             "updated_time": j.updated_time,
         })
-
+ 
     return response
 
 
@@ -87,30 +95,38 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str):
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
-
+ 
     job = db.query(Job).filter_by(job_id=job_id).one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-
+ 
     actions = []
-
+ 
     for a in job.modification_actions:
+        p_name = None
+        p_number = None
+        
+        if a.product:
+            p_name = a.product.item_name
+            p_number = a.product.manufacturer_part_number
+        elif a.cpl_item:
+            p_name = a.cpl_item.item_name
+            p_number = a.cpl_item.manufacturer_part_number
+ 
         actions.append({
             "action_id": a.action_id,
             "action_type": a.action_type,
             "product_id": a.product_id,
-            "product_name": a.product.item_name if a.product else None,
-            "manufacturer_part_number": (
-                a.product.manufacturer_part_number if a.product else None
-            ),
+            "product_name": p_name,
+            "manufacturer_part_number": p_number,
             "old_price": a.old_price,
             "new_price": a.new_price,
-            "old_description" : a.old_description,
-            "new_description" : a.new_description,
+            "old_description": a.old_description,
+            "new_description": a.new_description,
             "number_of_items_impacted": a.number_of_items_impacted,
             "created_time": a.created_time,
         })
-
+    
     return {
         "job_id": job.job_id,
         "client_id": job.client_id,
@@ -121,7 +137,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str):
         "modifications_actions": actions,
         "created_time": job.created_time,
         "updated_time": job.updated_time,
-    }
+    }   
 
 
 def approve_job(db: Session, job_id: int, user_email: str):
