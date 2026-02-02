@@ -17,7 +17,7 @@ class UserRead(ORMBase):
     user_id: int
     name: str
     email: EmailStr
-    phone_no: str
+    phone_no: Optional[str] = None
     is_active: Optional[bool] = False
     is_deleted: Optional[bool] = False 
 

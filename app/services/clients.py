@@ -94,6 +94,27 @@ def create_client_profile(db: Session, payload: ClientProfileCreate, current_use
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized"
             )
+    
+    if db.query(ClientProfile).filter(ClientProfile.company_email == payload.company_email).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company Email already exsits"
+            )
+    if db.query(ClientProfile).filter(ClientProfile.company_phone_no == payload.company_phone_no).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company Phone already exsits"
+            )
+    if db.query(ClientProfile).filter(ClientProfile.contact_officer_email == payload.contact_officer_email).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contact Officer Email already exsits"
+            )
+    if db.query(ClientProfile).filter(ClientProfile.contact_officer_phone_no == payload.contact_officer_phone_no).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contact Officer Phone already exsits"
+            )
 
 
 

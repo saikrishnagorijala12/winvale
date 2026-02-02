@@ -10,6 +10,7 @@ from app.models.product_history import ProductHistory
 from app.models.product_dim import ProductDim
 from app.models.file_uploads import FileUpload
 from app.utils import s3_upload as s3
+from fastapi import HTTPException, status
 
 from app.utils.upload_helper import (
     MASTER_FIELDS,
@@ -24,10 +25,17 @@ from app.utils.upload_helper import (
 def upload_products(db: Session, client_id: int, file, user_email: str):
 
     if not db.query(ClientProfile).filter_by(client_id=client_id).first():
-        raise ValueError("Invalid client")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client Not Found"
+        )
 
     if not db.query(ClientContracts).filter_by(client_id=client_id).first():
-        raise ValueError("Invalid contract")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No Contract Found for Selected Client"
+        )
+
 
     raw = pd.read_excel(BytesIO(file.file.read()), header=None)
     raw = raw.drop(index=0).reset_index(drop=True)
@@ -65,7 +73,6 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
             .first()
         )
 
-        # ---------------- INSERT ----------------
         if not product:
 
             master_payload = {
