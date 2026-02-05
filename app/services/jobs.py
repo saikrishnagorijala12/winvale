@@ -12,7 +12,7 @@ from app.utils.name_to_id import get_status_id_by_name
 from datetime import datetime
 from app.utils.scd_helper import create_product_history_snapshot
 from app.utils.upload_helper import identity_signature,history_signature
-
+from collections import Counter
 
 def create_job(db: Session, client_id: int, email: str):
     user = db.query(User).filter_by(email=email).first()
@@ -79,6 +79,7 @@ def list_jobs(db: Session):
         response.append({
             "job_id": j.job_id,
             "client_id": j.client_id,
+            "contract_number" : j.client.contracts.contract_number,
             "client": j.client.company_name,
             "user_id": j.user_id,
             "user": j.user.name,
@@ -89,6 +90,37 @@ def list_jobs(db: Session):
         })
  
     return response
+
+
+# def list_jobs(db: Session):
+#     jobs = (
+#         db.query(Job)
+#         .order_by(Job.created_time.desc())
+#         .all()
+#     )
+
+#     response = []
+
+#     for j in jobs:
+#         action_counter = Counter()
+
+#         for a in j.modification_actions:
+#             action_counter[a.action_type] += 1
+
+#         response.append({
+#             "job_id": j.job_id,
+#             "client_id": j.client_id,
+#             "contract_number": j.client.contracts.contract_number,
+#             "client": j.client.company_name,
+#             "user_id": j.user_id,
+#             "user": j.user.name,
+#             "status": j.status.status,
+#             "action_summary": dict(action_counter),  
+#             "created_time": j.created_time,
+#             "updated_time": j.updated_time,
+#         })
+
+#     return response
 
 
 def list_jobs_by_id(db: Session, job_id: int, user_email: str):
@@ -130,6 +162,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str):
     return {
         "job_id": job.job_id,
         "client_id": job.client_id,
+        "contract_number" : job.client.contracts.contract_number,
         "client": job.client.company_name,
         "user_id": job.user_id,
         "user": job.user.name,

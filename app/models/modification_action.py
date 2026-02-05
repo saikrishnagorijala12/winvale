@@ -49,6 +49,9 @@ class ModificationAction(Base):
     old_description = Column(Text)
     new_description = Column(Text)
 
+    old_name = Column(Text)
+    new_name = Column(Text)
+
     number_of_items_impacted = Column(Integer, nullable=False)
 
     created_time = Column(

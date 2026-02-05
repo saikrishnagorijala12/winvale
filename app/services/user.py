@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from app.models.users import User
 from datetime import datetime, timezone
 from app.auth.dependencies import get_current_user
@@ -150,8 +150,12 @@ def approve_user_service(db: Session, *, user_id: int) -> User:
  
     if user.is_active:
         return user
+    
+    # if not user.is_deleted:
+    #     return user
  
     user.is_active = True
+    user.is_deleted = False
     db.commit()
     db.refresh(user)
 
@@ -191,7 +195,7 @@ def reject_user_service(db: Session, *, user_id: int) -> User:
     db.commit()
     db.refresh(user)
 
-    message = "User Rejected sucessfully",
+    message = "User Rejected sucessfully"
  
     return {
         "user_id" : user.user_id,
@@ -285,3 +289,36 @@ def delete_user(db: Session, user_id:int):
         "message" : message
     }
 
+
+def change_user_role(db: Session, user_id:int,email:str):
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise UserNotFoundError()
+    
+    if user.email == email:
+        raise HTTPException(status_code=403, detail="Action Not Allowed for this User")
+
+    if user.is_deleted:
+        return user
+    
+    if user.role_id == 1:
+        user.role_id = 2
+        db.commit()
+        db.refresh(user)
+    elif user.role_id == 2:
+        user.role_id = 1
+        db.commit()
+        db.refresh(user)
+
+    message = "User role changed sucessfully"
+
+    return {
+        "user_id" : user.user_id,
+        "name" : user.name,
+        "email" : user.email,
+        "phone_no" : user.phone_no,
+        "is_active" : user.is_active,
+        "is_deleted" : user.is_deleted,
+        "role": user.role.role_name,
+        "message" : message
+    }

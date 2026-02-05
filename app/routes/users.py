@@ -122,3 +122,12 @@ def delete_user(
 ):
     require_admin(db, current_user["email"])
     return u.delete_user(db, user_id)
+
+@router.put("/change_role/{user_id}")
+def change_role(
+    user_id:int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_admin(db, current_user["email"])
+    return u.change_user_role(db,user_id,current_user["email"])

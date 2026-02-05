@@ -17,7 +17,7 @@ class ClientProfile(Base):
 
     client_id = Column(Integer, primary_key=True, autoincrement=True)
 
-    company_name = Column(String(30), nullable=False)
+    company_name = Column(String(51), nullable=False)
     company_email = Column(String(50), nullable=False, unique=True)
     company_phone_no = Column(String(15), nullable=False, unique=True)
     company_address = Column(String(50), nullable=False)

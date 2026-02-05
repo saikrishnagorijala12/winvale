@@ -5,6 +5,9 @@ from sqlalchemy import pool
 import os
 from alembic import context
 from dotenv import load_dotenv
+from sqlalchemy import text
+
+import app.models
 load_dotenv()
 
 
@@ -64,6 +67,9 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table="alembic_version",
+        version_table_schema="dev",
+        include_schemas=True
     )
 
     with context.begin_transaction():
@@ -84,10 +90,15 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        connection.execute(text("SET search_path TO dev"))
 
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table="alembic_version",
+            version_table_schema="dev",
+            include_schemas=True
+        )
         with context.begin_transaction():
             context.run_migrations()
 
