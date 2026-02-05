@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -36,27 +36,26 @@ def list_jobs_by_id(
     return j.list_jobs_by_id(db, job_id,current_user["email"])
 
 
-@router.post("/{job_id}/approve")
-def approve_job(
+@router.post("/{job_id}/status")
+def update_job_status(
     job_id: int,
+    action: str = Query(..., regex="^(approve|reject)$"),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return j.approve_job(
-        db=db,
-        job_id=job_id,
-        user_email=current_user["email"]
-    )
-
-
-@router.post("/{job_id}/reject")
-def reject_job(
-    job_id: int,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return j.reject_job(
-        db=db,
-        job_id=job_id,
-        user_email=current_user["email"]
-    )
+    if action == "approve":
+        return j.approve_job(
+            db=db,
+            job_id=job_id,
+            user_email=current_user["email"],
+        )
+ 
+    if action == "reject":
+        return j.reject_job(
+            db=db,
+            job_id=job_id,
+            user_email=current_user["email"],
+        )
+ 
+    raise HTTPException(status_code=400, detail="Invalid action")
+ 

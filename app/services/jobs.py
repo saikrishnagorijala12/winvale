@@ -188,11 +188,7 @@ def approve_job(db: Session, job_id: int, user_email: str):
     if not user:
         raise HTTPException(401, "Invalid user")
 
-    actions = (
-        db.query(ModificationAction)
-        .filter_by(job_id=job_id)
-        .all()
-    )
+    actions = db.query(ModificationAction).filter_by(job_id=job_id).all()
 
     if not actions:
         raise HTTPException(400, "No modifications found for job")
@@ -201,6 +197,47 @@ def approve_job(db: Session, job_id: int, user_email: str):
     now = datetime.utcnow()
 
     for action in actions:
+
+        if action.action_type == "NEW_PRODUCT":
+
+            if not action.cpl_item:
+                raise HTTPException(500, "CPL data missing for new product")
+
+            cpl = action.cpl_item
+
+            row_data = {
+                "manufacturer": cpl.manufacturer_name,
+                "manufacturer_part_number": cpl.manufacturer_part_number,
+                "item_name": cpl.item_name,
+            }
+
+            new_product = ProductMaster(
+                client_id=client_id,
+                item_type="B",
+                manufacturer=cpl.manufacturer_name,
+                manufacturer_part_number=cpl.manufacturer_part_number,
+                item_name=cpl.item_name,
+                item_description=cpl.item_description,
+                commercial_price=action.new_price,
+                country_of_origin=cpl.origin_country,
+                currency="USD",
+                row_signature=identity_signature(row_data),
+                is_deleted=False,
+            )
+
+            db.add(new_product)
+            db.flush()
+
+            db.add(
+                create_product_history_snapshot(
+                    new_product,
+                    client_id,
+                    is_current=True,
+                )
+            )
+
+            continue
+
         product = (
             db.query(ProductMaster)
             .filter_by(product_id=action.product_id)
@@ -208,17 +245,11 @@ def approve_job(db: Session, job_id: int, user_email: str):
         )
 
         if not product:
-            raise HTTPException(
-                500,
-                f"Product {action.product_id} not found"
-            )
+            raise HTTPException(500, f"Product {action.product_id} not found")
 
         current_history = (
             db.query(ProductHistory)
-            .filter_by(
-                product_id=product.product_id,
-                is_current=True,
-            )
+            .filter_by(product_id=product.product_id, is_current=True)
             .first()
         )
 
@@ -227,19 +258,19 @@ def approve_job(db: Session, job_id: int, user_email: str):
             current_history.effective_end_date = now
 
         if action.action_type == "REMOVED_PRODUCT":
+
             product.is_deleted = True
-            db.add(
-                create_product_history_snapshot(
-                    product,
-                    client_id,
-                    is_current=False,
-                    end_date=now,
-                )
-            )
+
+            if current_history:
+                current_history.is_current = False
+                current_history.effective_end_date = now
+
             continue
+
 
         product.commercial_price = action.new_price
         product.item_description = action.new_description
+        product.item_name = action.new_name or product.item_name
 
         db.add(
             create_product_history_snapshot(
