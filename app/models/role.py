@@ -5,6 +5,7 @@ from app.models.base import Base
 
 class Role(Base):
     __tablename__ = "role"
+    __table_args__ = {"schema": "dev"}
 
     role_id = Column(Integer, primary_key=True, autoincrement=True)
     role_name = Column(String(10), nullable=False)

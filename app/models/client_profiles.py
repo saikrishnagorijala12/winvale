@@ -14,6 +14,7 @@ from sqlalchemy.orm import relationship
 
 class ClientProfile(Base):
     __tablename__ = "client_profiles"
+    __table_args__ = {"schema": "dev"}
 
     client_id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -38,7 +39,7 @@ class ClientProfile(Base):
 
     status_id = Column(
         Integer,
-        ForeignKey("status.status_id", ondelete="RESTRICT"),
+        ForeignKey("dev.status.status_id", ondelete="RESTRICT"),
         nullable=False
     )
     is_deleted = Column(Boolean, nullable=False, default=False)

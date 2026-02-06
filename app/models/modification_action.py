@@ -8,36 +8,37 @@ from sqlalchemy.orm import relationship
 
 class ModificationAction(Base):
     __tablename__ = "modification_action"
+    __table_args__ = {"schema": "dev"}
 
     action_id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(
         Integer,
-        ForeignKey("users.user_id", ondelete="RESTRICT"),
+        ForeignKey("dev.users.user_id", ondelete="RESTRICT"),
         nullable=False
     )
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 
     job_id = Column(
         Integer,
-        ForeignKey("jobs.job_id", ondelete="CASCADE"),
+        ForeignKey("dev.jobs.job_id", ondelete="CASCADE"),
         nullable=False
     )
 
     cpl_id = Column(
         Integer,
-        ForeignKey("cpl_list.cpl_id", ondelete="SET NULL"),
+        ForeignKey("dev.cpl_list.cpl_id", ondelete="SET NULL"),
         nullable=True
     )
 
     product_id = Column(
         Integer,
-        ForeignKey("product_master.product_id", ondelete="SET NULL"),
+        ForeignKey("dev.product_master.product_id", ondelete="SET NULL"),
         nullable=True
     )
 

@@ -7,24 +7,25 @@ from sqlalchemy.orm import relationship
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = {"schema": "dev"}
 
     job_id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(
         Integer,
-        ForeignKey("users.user_id", ondelete="RESTRICT"),
+        ForeignKey("dev.users.user_id", ondelete="RESTRICT"),
         nullable=False
     )
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 
     status_id = Column(
         Integer,
-        ForeignKey("status.status_id", ondelete="RESTRICT"),
+        ForeignKey("dev.status.status_id", ondelete="RESTRICT"),
         nullable=False
     )
 

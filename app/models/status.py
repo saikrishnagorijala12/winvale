@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 
 class Status(Base):
     __tablename__ = "status"
+    __table_args__ = {"schema": "dev"}
 
     status_id = Column(Integer, primary_key=True, autoincrement=True)
     status = Column(String(10), nullable=False)

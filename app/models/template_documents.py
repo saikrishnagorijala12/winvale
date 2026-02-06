@@ -3,6 +3,7 @@ from app.models.base import Base
 
 class TemplateDocument(Base):
     __tablename__ = "template_documents"
+    __table_args__ = {"schema": "dev"}
 
     template_id = Column(Integer, primary_key=True, autoincrement=True)
 

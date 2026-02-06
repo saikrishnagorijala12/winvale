@@ -7,12 +7,13 @@ from sqlalchemy.orm import relationship
 
 class CPLList(Base):
     __tablename__ = "cpl_list"
+    __table_args__ = {"schema": "dev"}
 
     cpl_id = Column(Integer, primary_key=True, autoincrement=True)
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 
@@ -27,7 +28,7 @@ class CPLList(Base):
 
     uploaded_by = Column(
         Integer,
-        ForeignKey("users.user_id", ondelete="RESTRICT"),
+        ForeignKey("dev.users.user_id", ondelete="RESTRICT"),
         nullable=False
     )
 
