@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"schema": "dev"}
 
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(30), nullable=False)
@@ -16,7 +17,7 @@ class User(Base):
 
     role_id = Column(
         Integer,
-        ForeignKey("role.role_id", ondelete="RESTRICT"),
+        ForeignKey("dev.role.role_id", ondelete="RESTRICT"),
         nullable=False
     )
 

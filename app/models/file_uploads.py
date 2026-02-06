@@ -7,18 +7,19 @@ from sqlalchemy.orm import relationship
 
 class FileUpload(Base):
     __tablename__ = "file_uploads"
+    __table_args__ = {"schema": "dev"}
 
     upload_id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(
         Integer,
-        ForeignKey("users.user_id", ondelete="RESTRICT"),
+        ForeignKey("dev.users.user_id", ondelete="RESTRICT"),
         nullable=False
     )
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False
     )
 
@@ -37,7 +38,7 @@ class FileUpload(Base):
 
     uploaded_by = Column(
         Integer,
-        ForeignKey("users.user_id", ondelete="RESTRICT"),
+        ForeignKey("dev.users.user_id", ondelete="RESTRICT"),
         nullable=False
     )
 

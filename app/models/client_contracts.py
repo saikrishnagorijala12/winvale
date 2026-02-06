@@ -13,6 +13,7 @@ from sqlalchemy.orm import relationship
 
 class ClientContracts(Base):
     __tablename__ = "client_contracts"
+    __table_args__ = {"schema": "dev"}
 
     client_profile_id = Column(
         Integer, primary_key=True, autoincrement=True
@@ -41,7 +42,7 @@ class ClientContracts(Base):
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id",  ondelete="RESTRICT"),
+        ForeignKey("dev.client_profiles.client_id",  ondelete="RESTRICT"),
         nullable=False,  unique=True
     )
 

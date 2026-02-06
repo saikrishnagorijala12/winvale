@@ -38,19 +38,20 @@ class ProductHistory(Base):
             "ix_product_history_client",
             "client_id",
         ),
+        {"schema": "dev"}
     )
 
     product_history_id = Column(Integer, primary_key=True, autoincrement=True)
 
     product_id = Column(
         Integer,
-        ForeignKey("product_master.product_id", ondelete="CASCADE"),
+        ForeignKey("dev.product_master.product_id", ondelete="CASCADE"),
         nullable=False,
     )
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False,
     )
 

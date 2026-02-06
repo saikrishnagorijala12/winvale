@@ -28,13 +28,14 @@ class ProductMaster(Base):
         ),
         Index("ix_product_master_client", "client_id"),
         Index("ix_product_master_signature", "row_signature"),
+        {"schema": "dev"}
     )
 
     product_id = Column(Integer, primary_key=True, autoincrement=True)
 
     client_id = Column(
         Integer,
-        ForeignKey("client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
         nullable=False,
     )
 

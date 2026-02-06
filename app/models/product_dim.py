@@ -12,12 +12,13 @@ from app.models.base import Base
 
 class ProductDim(Base):
     __tablename__ = "product_dim"
+    __table_args__ = {"schema": "dev"}
 
     dim_id = Column(Integer, primary_key=True, autoincrement=True)
 
     product_id = Column(
         Integer,
-        ForeignKey("product_master.product_id", ondelete="CASCADE"),
+        ForeignKey("dev.product_master.product_id", ondelete="CASCADE"),
         nullable=False
     )
 
