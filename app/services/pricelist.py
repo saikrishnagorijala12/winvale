@@ -171,7 +171,7 @@ def upload_cpl_service(
 
     products = (
         db.query(ProductMaster)
-        .filter_by(client_id=client_id)
+        .filter_by(client_id=client_id, is_deleted=False)
         .all()
     )
 
