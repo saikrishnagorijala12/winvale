@@ -12,6 +12,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def greet():
+    return "Welcome To Winvale GSA Automation Tool. For more routes go to /docs."
  
  
 # if __name__ == "__main__":
