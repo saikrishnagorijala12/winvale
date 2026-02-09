@@ -18,7 +18,7 @@ def get_all(db: Session):
             joinedload(ProductMaster.client),
             joinedload(ProductMaster.dimension),
         )
-        .filter(ClientProfile.is_deleted.is_(False))
+        .filter(ClientProfile.is_deleted.is_(False), ProductMaster.is_deleted == False)
         .all()
     )
 
@@ -98,7 +98,8 @@ def get_by_id(db: Session, product_id: int):
     )
     .filter(
         ClientProfile.is_deleted.is_(False),
-        ProductMaster.product_id == product_id
+        ProductMaster.product_id == product_id,
+        ProductMaster.is_deleted == False
     )
     .one_or_none()
 )
@@ -179,7 +180,8 @@ def get_by_client(db: Session, client_id: int):
     )
     .filter(
         ClientProfile.is_deleted.is_(False),
-        ProductMaster.client_id == client_id
+        ProductMaster.client_id == client_id,
+        ProductMaster.is_deleted == False
     )
     .all()
 )
