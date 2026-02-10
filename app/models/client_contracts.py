@@ -43,7 +43,7 @@ class ClientContracts(Base):
     client_id = Column(
         Integer,
         ForeignKey("dev.client_profiles.client_id",  ondelete="RESTRICT"),
-        nullable=False,  unique=True
+        unique=True
     )
 
     client_company_logo = Column(String(50))

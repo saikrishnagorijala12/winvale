@@ -58,7 +58,7 @@ def get_job_full_details(db: Session, job_id: int, user_email: str):
             product_name = a.cpl_item.item_name
             mpn = a.cpl_item.manufacturer_part_number
  
-        if a.action_type == "ADDED_PRODUCT":
+        if a.action_type == "NEW_PRODUCT":
             summary["products_added"] += 1
  
         if a.action_type == "REMOVED_PRODUCT":

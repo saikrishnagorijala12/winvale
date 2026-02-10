@@ -180,10 +180,17 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
     db.commit()
 
+    
     if inserted or updated:
         s3.save_uploaded_file(db, client_id, file, user_email, "gsa_upload")
+        return {
+            "status_code": status.HTTP_201_CREATED,
+            "message": "File inserted or updated successfully"
+        }
 
     return {
+        "status_code": status.HTTP_200_OK,
+        "message": "No changes made",
         "inserted": inserted,
         "updated": updated,
         "skipped": skipped,

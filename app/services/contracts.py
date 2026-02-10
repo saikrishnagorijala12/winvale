@@ -119,16 +119,23 @@ def update_contract_by_client_id(
 class ClientNotFoundError(Exception):
     pass
 
-def delete_contract(db: Session, client_id:int):
-    client = db.query(ClientContracts).filter(ClientContracts.client_id == client_id).first()
-    if not client:
+def delete_contract(db: Session, client_id: int):
+    contract = (
+        db.query(ClientContracts)
+        .filter(ClientContracts.client_id == client_id)
+        .first()
+    )
+
+    if not contract:
         raise ClientNotFoundError()
 
-    if client.is_deleted:
-        return client
+    if contract.is_deleted:
+        return contract
 
-    client.is_deleted = True
+    contract.is_deleted = True
+    contract.client_id = None 
+
     db.commit()
-    db.refresh(client)
+    db.refresh(contract)
 
-    return client
+    return contract
