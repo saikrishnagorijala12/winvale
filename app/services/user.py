@@ -68,6 +68,10 @@ def update_user(
 
     if not user:
         return None
+    existing = db.query(User).filter(user.phone_no == phone_no).one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="Phone Number Already Exits")
+
 
     user.name = name
     # if phone_no is not None:

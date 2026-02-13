@@ -1,4 +1,3 @@
- 
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from app.models import (
@@ -29,8 +28,8 @@ def get_job_full_details(db: Session, job_id: int, user_email: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
  
-    if job.user_id != user.user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # if job.user_id != user.user_id:
+    #     raise HTTPException(status_code=403, detail="Access denied")
  
     contract = (
         db.query(ClientContracts)
@@ -64,16 +63,14 @@ def get_job_full_details(db: Session, job_id: int, user_email: str):
         if a.action_type == "REMOVED_PRODUCT":
             summary["products_deleted"] += 1
  
-        if a.old_description and a.new_description and a.old_description != a.new_description:
+        if a.action_type == "DESCRIPTION_CHANGE":
             summary["description_changed"] += 1
  
-        if a.old_price is not None and a.new_price is not None:
-            if a.new_price > a.old_price:
-                summary["price_increased"] += 1
-            elif a.new_price < a.old_price:
-                summary["price_decreased"] += 1
- 
-     
+        if a.action_type == "PRICE_INCREASE":
+            summary["price_increased"] += 1
+            
+        if a.action_type == "PRICE_DECREASE":
+            summary["price_decreased"] += 1     
  
     return {
  
@@ -93,7 +90,7 @@ def get_job_full_details(db: Session, job_id: int, user_email: str):
             "delivery":{
             "normal_delivery_time": contract.normal_delivery_time,
             "expedited_delivery_time": contract.expedited_delivery_time},
-            "addres":{
+            "address":{
             "contract_officer_address":contract.contract_officer_address,
             "contract_officer_city":contract.contract_officer_city,
                         "contract_officer_state":contract.contract_officer_state,

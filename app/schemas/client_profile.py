@@ -49,7 +49,7 @@ class ClientProfileRead(ClientProfileBase):
     updated_time: datetime
  
 class ClientListRead(ClientProfileRead):
-    pass
+    has_products: bool
  
  
 class ClientProfileUpdate(ORMBase):

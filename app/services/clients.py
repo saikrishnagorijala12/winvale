@@ -57,8 +57,17 @@ def get_all_clients(db: Session):
     
 
 def get_active_clients(db: Session):
+ 
+    product_exists = (
+        db.query(ProductMaster.product_id)
+        .filter(
+            ProductMaster.client_id == ClientProfile.client_id,
+            ProductMaster.is_deleted.is_(False)
+        )
+        .exists()
+    )
     clients = (
-        db.query(ClientProfile)
+        db.query(ClientProfile, product_exists.label("has_products"))
         .join(ClientProfile.status)
         .options(joinedload(ClientProfile.status))
         .filter(
@@ -67,11 +76,15 @@ def get_active_clients(db: Session):
         )
         .all()
     )
-
-    return [
-        serialize_client(c)
-        for c in clients
-    ]
+ 
+    result = []
+ 
+    for client, has_products in clients:
+        data = serialize_client(client)
+        data["has_products"] = bool(has_products)
+        result.append(data)
+ 
+    return result
  
 def get_client_by_id(db: Session, client_id: int) -> ClientProfile | None:
     c = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
