@@ -4,6 +4,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session,joinedload
 from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
+from app.models.product_master import ProductMaster
 from app.models.status import Status
 from app.models.users import User
 from app.schemas.client_profile import ClientProfileCreate, ClientProfileUpdate
