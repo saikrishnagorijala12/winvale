@@ -11,12 +11,10 @@ router = APIRouter(prefix="/products", tags=["Products"])
 
 @router.get("")
 def get_all(
-    page: int = 1,
-    page_size: int = 20,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return prod.get_all(db, page, page_size)
+    return prod.get_all(db)
 
 
 @router.get("/id/{product_id}")
@@ -30,9 +28,7 @@ def get_product_by_id(
 @router.get("/client/{client_id}")
 def get_product_by_client(
     client_id: int,
-    page: int = 1,
-    page_size: int = 20,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return prod.get_by_client(db, client_id, page, page_size)
+    return prod.get_by_client(db, client_id)

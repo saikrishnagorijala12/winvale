@@ -61,39 +61,47 @@ def update_user(
     db: Session,
     *,
     name: str,
-    email: str ,
-    phone_no: str| None = None,
+    email: str,
+    phone_no: str | None = None,
 ):
+
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
         return None
-    existing = db.query(User).filter(user.phone_no == phone_no).one_or_none()
-    if existing:
-        raise HTTPException(status_code=409, detail="Phone Number Already Exits")
 
+    if phone_no is not None:
+        existing = (
+            db.query(User)
+            .filter(
+                User.phone_no == phone_no,
+                User.user_id != user.user_id
+            )
+            .first()
+        )
+
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail="Phone Number Already Exists"
+            )
 
     user.name = name
-    # if phone_no is not None:
     user.phone_no = phone_no
 
     db.commit()
     db.refresh(user)
 
-    message = "User Details updated sucessfully",
-
     return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "phone_no": user.phone_no,
+        "is_active": user.is_active,
+        "is_deleted": user.is_deleted,
         "role": user.role.role_name,
-        "message" : message
+        "message": "User Details updated successfully",
     }
-
-
 
 
 class UserAlreadyExistsError(Exception):

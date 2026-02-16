@@ -8,13 +8,7 @@ from app.utils.name_to_id import get_status_id_by_name
 from sqlalchemy.orm import joinedload
 
 
-def get_all(db: Session, page: int, page_size: int):
-    if page < 1:
-        page = 1
-    if page_size < 1:
-        page_size = 20
-
-    offset = (page - 1) * page_size
+def get_all(db: Session):
 
     base_query = (
         db.query(ProductMaster)
@@ -33,8 +27,6 @@ def get_all(db: Session, page: int, page_size: int):
             joinedload(ProductMaster.client),
             joinedload(ProductMaster.dimension),
         )
-        .offset(offset)
-        .limit(page_size)
         .all()
     )
 
@@ -99,8 +91,6 @@ def get_all(db: Session, page: int, page_size: int):
         })
 
     return {
-        "page": page,
-        "page_size": page_size,
         "total": total,
         "items": result
     }
@@ -184,13 +174,8 @@ def get_by_id(db: Session, product_id: int):
 
 
 
-def get_by_client(db: Session, client_id: int, page: int, page_size: int):
-    if page < 1:
-        page = 1
-    if page_size < 1:
-        page_size = 20
-
-    offset = (page - 1) * page_size
+def get_by_client(db: Session, client_id: int):
+   
 
     base_query = (
         db.query(ProductMaster)
@@ -216,8 +201,6 @@ def get_by_client(db: Session, client_id: int, page: int, page_size: int):
             joinedload(ProductMaster.client),
             joinedload(ProductMaster.dimension),
         )
-        .offset(offset)
-        .limit(page_size)
         .all()
     )
 
@@ -278,8 +261,6 @@ def get_by_client(db: Session, client_id: int, page: int, page_size: int):
 
     return {
         "client_id": client_id,
-        "page": page,
-        "page_size": page_size,
         "total": total,
         "items": result,
     }
