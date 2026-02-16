@@ -40,6 +40,57 @@ def create_job(db: Session, client_id: int, email: str):
         "created_time": job.created_time
     }
  
+# def list_jobs(db: Session):
+#     jobs = (
+#         db.query(Job)
+#         .order_by(Job.created_time.desc())
+#         .all()
+#     )
+ 
+#     response = []
+ 
+#     for j in jobs:
+#         actions = []
+#         for a in j.modification_actions:
+#             p_name = None
+#             p_number = None
+            
+#             if a.product:
+#                 p_name = a.product.item_name
+#                 p_number = a.product.manufacturer_part_number
+#             elif a.cpl_item:
+#                 p_name = a.cpl_item.item_name
+#                 p_number = a.cpl_item.manufacturer_part_number
+ 
+#             actions.append({
+#                 "action_id": a.action_id,
+#                 "action_type": a.action_type,
+#                 "product_id": a.product_id,
+#                 "product_name": p_name,
+#                 "manufacturer_part_number": p_number,
+#                 "old_price": a.old_price,
+#                 "new_price": a.new_price,
+#                 "old_description": a.old_description,
+#                 "new_description": a.new_description,
+#                 "number_of_items_impacted": a.number_of_items_impacted,
+#                 "created_time": a.created_time,
+#             })
+        
+#         response.append({
+#             "job_id": j.job_id,
+#             "client_id": j.client_id,
+#             "contract_number" : j.client.contracts.contract_number,
+#             "client": j.client.company_name,
+#             "user_id": j.user_id,
+#             "user": j.user.name,
+#             "status": j.status.status,
+#             "modifications_actions": actions,
+#             "created_time": j.created_time,
+#             "updated_time": j.updated_time,
+#         })
+ 
+#     return response
+
 def list_jobs(db: Session):
     jobs = (
         db.query(Job)
@@ -50,41 +101,20 @@ def list_jobs(db: Session):
     response = []
  
     for j in jobs:
-        actions = []
-        for a in j.modification_actions:
-            p_name = None
-            p_number = None
-            
-            if a.product:
-                p_name = a.product.item_name
-                p_number = a.product.manufacturer_part_number
-            elif a.cpl_item:
-                p_name = a.cpl_item.item_name
-                p_number = a.cpl_item.manufacturer_part_number
+        action_counter = Counter()
  
-            actions.append({
-                "action_id": a.action_id,
-                "action_type": a.action_type,
-                "product_id": a.product_id,
-                "product_name": p_name,
-                "manufacturer_part_number": p_number,
-                "old_price": a.old_price,
-                "new_price": a.new_price,
-                "old_description": a.old_description,
-                "new_description": a.new_description,
-                "number_of_items_impacted": a.number_of_items_impacted,
-                "created_time": a.created_time,
-            })
-        
+        for a in j.modification_actions:
+            action_counter[a.action_type] += 1
+ 
         response.append({
             "job_id": j.job_id,
             "client_id": j.client_id,
-            "contract_number" : j.client.contracts.contract_number,
+            "contract_number": j.client.contracts.contract_number,
             "client": j.client.company_name,
             "user_id": j.user_id,
             "user": j.user.name,
             "status": j.status.status,
-            "modifications_actions": actions,
+            "action_summary": dict(action_counter),  
             "created_time": j.created_time,
             "updated_time": j.updated_time,
         })
