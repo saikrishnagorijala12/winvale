@@ -9,7 +9,7 @@ from app.models.product_master import ProductMaster
 from app.models.product_history import ProductHistory
 from app.models.product_dim import ProductDim
 from app.utils import s3_upload as s3
-
+from app.redis_client import redis_client
 from app.utils.upload_helper import (
     MASTER_FIELDS,
     HISTORY_FIELDS,
@@ -165,7 +165,7 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
             db.commit()
 
     db.commit()
-
+    redis_client.delete(f"products:client:{client_id}")
     file.file.seek(0)
 
     if inserted or updated:

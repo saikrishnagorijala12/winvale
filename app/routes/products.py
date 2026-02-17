@@ -5,6 +5,8 @@ from app.database import get_db
 
 from app.services import products as prod
 from app.utils.admin_check import require_admin
+import json
+from app.redis_client import redis_client
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -31,4 +33,14 @@ def get_product_by_client(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return prod.get_by_client(db, client_id)
+    cache_key = f"products:client:{client_id}"
+
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    data = prod.get_by_client(db, client_id)
+
+    redis_client.setex(cache_key, 300, json.dumps(data))
+
+    return data
