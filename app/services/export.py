@@ -1,24 +1,30 @@
 from sqlalchemy.orm import Session, joinedload
 from openpyxl import Workbook
 from app.models.product_master import ProductMaster
-from datetime import datetime, timezone
 from app.models.client_profiles import ClientProfile
+from datetime import datetime, timezone
+from typing import Optional
 
 
-def export_products_excel(db: Session, client_id: int):
-    products = (
+def export_products_excel(db: Session, client_id: Optional[int] = None):
+    query = (
         db.query(ProductMaster)
-        .filter(ProductMaster.client_id == client_id)
-        .options(joinedload(ProductMaster.dimension))
-        .all()
+        .options(
+            joinedload(ProductMaster.dimension),
+            joinedload(ProductMaster.client)
+        )
     )
+
+    if client_id is not None:
+        query = query.filter(ProductMaster.client_id == client_id)
+
+    products = query.all()
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Products"
 
-    # Header MUST match import header exactly
-    ws.append([
+    headers = [
         "item_type",
         "manufacturer",
         "manufacturer_part_number",
@@ -66,12 +72,17 @@ def export_products_excel(db: Session, client_id: int):
         "dealer_cost",
         "mfc_markup_percentage",
         "govt_markup_percentage",
-    ])
+    ]
+
+    if client_id is None:
+        headers.insert(0, "client_name")
+
+    ws.append(headers)
 
     for p in products:
         d = p.dimension
 
-        ws.append([
+        row = [
             p.item_type,
             p.manufacturer,
             p.manufacturer_part_number,
@@ -119,15 +130,22 @@ def export_products_excel(db: Session, client_id: int):
             float(p.dealer_cost) if p.dealer_cost is not None else None,
             float(p.mfc_markup_percentage) if p.mfc_markup_percentage is not None else None,
             float(p.govt_markup_percentage) if p.govt_markup_percentage is not None else None,
-        ])
+        ]
+
+        if client_id is None:
+            row.insert(0, p.client.company_name if p.client else None)
+
+        ws.append(row)
 
     return wb
 
 
-def get_master_filename(db: Session, client_id: int):
-    client = db.query(ClientProfile).filter_by(client_id=client_id).first()
-
+def get_master_filename(db: Session, client_id: Optional[int] = None):
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    filename = f"{client.company_name}_master_{date_str}.xlsx"
 
-    return filename
+    if client_id is not None:
+        client = db.query(ClientProfile).filter_by(client_id=client_id).first()
+        if client:
+            return f"{client.company_name}_products_{date_str}.xlsx"
+
+    return f"all_products_{date_str}.xlsx"
