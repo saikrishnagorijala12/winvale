@@ -7,6 +7,7 @@ from app.services import products as prod
 from app.utils.admin_check import require_admin
 import json
 from app.redis_client import redis_client
+from fastapi.encoders import jsonable_encoder
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -41,6 +42,9 @@ def get_product_by_client(
 
     data = prod.get_by_client(db, client_id)
 
-    redis_client.setex(cache_key, 300, json.dumps(data))
-
+    redis_client.setex(
+    cache_key,
+    300,
+    json.dumps(jsonable_encoder(data))
+)
     return data

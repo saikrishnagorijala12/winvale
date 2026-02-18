@@ -6,6 +6,7 @@ from app.models.client_profiles import ClientProfile
 from app.models.product_master import ProductMaster
 from app.utils.name_to_id import get_status_id_by_name
 from sqlalchemy.orm import joinedload
+from fastapi.encoders import jsonable_encoder
 
 
 def get_all(db: Session):

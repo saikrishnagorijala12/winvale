@@ -1,35 +1,35 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:17
-    container_name: postgres-db
+    container_name: winvale-postgres
     environment:
       POSTGRES_DB: fastapi_db
       POSTGRES_USER: fastapi_user
-      POSTGRES_PASSWORD: Yotta@1234
+      POSTGRES_PASSWORD: Yotta1234
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fastapi_user"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7
+    container_name: winvale-redis
+    ports:
+      - "6379:6379"
     restart: always
 
   backend:
     build: .
-    container_name: fastapi-backend
+    container_name: winvale-backend
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - .env.docker
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+      - redis
     restart: always
 
 volumes:
-  postgres_data_
+  postgres_data:
