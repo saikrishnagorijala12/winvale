@@ -1,7 +1,8 @@
 from datetime import datetime
 from openpyxl import load_workbook
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from sqlalchemy import select
+from fastapi import HTTPException
 
 from app.models.client_profiles import ClientProfile
 from app.models.client_contracts import ClientContracts
@@ -20,7 +21,7 @@ from app.redis_client import redis_client
 from app.utils import s3_upload as s3
 
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 500
 
 
 def upload_products(db: Session, client_id: int, file, user_email: str):
@@ -28,50 +29,61 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
     # ----------------------------
     # Validate client
     # ----------------------------
-    if not db.query(ClientProfile).filter_by(client_id=client_id).first():
+    if not db.query(ClientProfile.client_id).filter_by(client_id=client_id).first():
         raise HTTPException(status_code=404, detail="Client Not Found")
 
-    if not db.query(ClientContracts).filter_by(client_id=client_id).first():
+    if not db.query(ClientContracts.client_id).filter_by(client_id=client_id).first():
         raise HTTPException(status_code=404, detail="No Contract Found")
 
     # ----------------------------
-    # Load Excel in STREAM mode
+    # Load Excel STREAM MODE
     # ----------------------------
     file.file.seek(0)
-    wb = load_workbook(file.file, read_only=True)
+    wb = load_workbook(file.file, read_only=True, data_only=True)
     sheet = wb.active
 
     rows = sheet.iter_rows(values_only=True)
 
-    # Skip first 2 header rows
-    next(rows)
+    next(rows)  # skip row 1
     headers = [h for h in next(rows)]
 
     inserted = 0
     updated = 0
     skipped = 0
-
-    # ----------------------------
-    # Preload existing products
-    # ----------------------------
-    existing_products = {
-        (p.manufacturer, p.manufacturer_part_number): p
-        for p in db.query(ProductMaster)
-        .filter_by(client_id=client_id)
-        .all()
-    }
-
-    # ----------------------------
-    # Preload current histories
-    # ----------------------------
-    current_histories = {
-        h.product_id: h
-        for h in db.query(ProductHistory)
-        .filter_by(client_id=client_id, is_current=True)
-        .all()
-    }
-
     batch_counter = 0
+
+    # ----------------------------
+    # Preload ONLY KEYS (lightweight)
+    # ----------------------------
+    existing_keys = set(
+        db.execute(
+            select(
+                ProductMaster.manufacturer,
+                ProductMaster.manufacturer_part_number,
+                ProductMaster.product_id,
+                ProductMaster.row_signature
+            ).where(ProductMaster.client_id == client_id)
+        ).all()
+    )
+
+    # Map for quick lookup
+    product_lookup = {
+        (m, mpn): (pid, sig)
+        for (m, mpn, pid, sig) in existing_keys
+    }
+
+    # Preload current history signatures
+    history_lookup = dict(
+        db.execute(
+            select(
+                ProductHistory.product_id,
+                ProductHistory.row_signature
+            ).where(
+                ProductHistory.client_id == client_id,
+                ProductHistory.is_current == True
+            )
+        ).all()
+    )
 
     # ----------------------------
     # Process rows
@@ -92,12 +104,13 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         identity_sig = identity_signature(row_data)
         history_sig = history_signature(row_data)
 
-        product = existing_products.get((manufacturer, mpn))
+        existing = product_lookup.get((manufacturer, mpn))
 
         # ----------------------------------
         # NEW PRODUCT
         # ----------------------------------
-        if not product:
+        if not existing:
+
             master_payload = {
                 f: row_data.get(f)
                 for f in MASTER_FIELDS
@@ -138,7 +151,13 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
             db.add(ProductDim(product_id=product.product_id, **dim_payload))
 
-            existing_products[(manufacturer, mpn)] = product
+            product_lookup[(manufacturer, mpn)] = (
+                product.product_id,
+                identity_sig,
+            )
+
+            history_lookup[product.product_id] = history_sig
+
             inserted += 1
             batch_counter += 1
 
@@ -146,14 +165,19 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         # EXISTING PRODUCT
         # ----------------------------------
         else:
-            current = current_histories.get(product.product_id)
 
-            if current and current.row_signature == history_sig:
+            product_id, old_identity_sig = existing
+            current_history_sig = history_lookup.get(product_id)
+
+            if current_history_sig == history_sig:
                 skipped += 1
                 continue
 
-            if current:
-                current.is_current = False
+            # Mark old history not current
+            db.query(ProductHistory).filter_by(
+                product_id=product_id,
+                is_current=True
+            ).update({"is_current": False})
 
             history_payload = {
                 f: row_data.get(f)
@@ -164,7 +188,7 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
             db.add(
                 ProductHistory(
-                    product_id=product.product_id,
+                    product_id=product_id,
                     client_id=client_id,
                     row_signature=history_sig,
                     is_current=True,
@@ -172,39 +196,59 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
                 )
             )
 
-            for f in MASTER_FIELDS:
-                value = row_data.get(f)
-                if value is not None:
-                    setattr(product, f, value)
+            # Update master
+            db.query(ProductMaster).filter_by(
+                product_id=product_id
+            ).update(
+                {
+                    **{
+                        f: row_data.get(f)
+                        for f in MASTER_FIELDS
+                        if row_data.get(f) is not None
+                    },
+                    "row_signature": identity_sig
+                }
+            )
 
-            product.row_signature = identity_sig
+            # Update dimension
+            db.query(ProductDim).filter_by(
+                product_id=product_id
+            ).update(
+                {
+                    f: row_data.get(f)
+                    for f in DIM_FIELDS
+                    if row_data.get(f) is not None
+                }
+            )
 
-            dim = product.dimension
-            if dim:
-                for f in DIM_FIELDS:
-                    value = row_data.get(f)
-                    if value is not None:
-                        setattr(dim, f, value)
-
+            history_lookup[product_id] = history_sig
             updated += 1
             batch_counter += 1
 
         # ----------------------------------
-        # Commit in batches
+        # Batch Commit + Memory Cleanup
         # ----------------------------------
         if batch_counter >= BATCH_SIZE:
             db.commit()
+            db.expunge_all()
             batch_counter = 0
 
     db.commit()
+    db.expunge_all()
 
-    # Clear cache
+    # ----------------------------
+    # Clear Cache
+    # ----------------------------
     redis_client.delete(f"products:client:{client_id}")
 
-    # Save file to S3
-    file.file.seek(0)
+    # ----------------------------
+    # Save file to S3 (only if changed)
+    # ----------------------------
     if inserted or updated:
-        s3.save_uploaded_file(db, client_id, file, user_email, "gsa_upload")
+        file.file.seek(0)
+        s3.save_uploaded_file(
+            db, client_id, file, user_email, "gsa_upload"
+        )
 
     return {
         "status_code": 201 if inserted or updated else 200,
