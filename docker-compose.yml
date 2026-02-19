@@ -8,6 +8,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - winvale-net
     restart: always
 
   redis:
@@ -17,6 +19,8 @@ services:
       - .env.docker
     ports:
       - "6379:6379"
+    networks:
+      - winvale-net
     restart: always
 
   backend:
@@ -30,7 +34,13 @@ services:
     depends_on:
       - db
       - redis
+    networks:
+      - winvale-net
     restart: always
 
 volumes:
   postgres_data:
+
+networks:
+  winvale-net:
+    driver: bridge
