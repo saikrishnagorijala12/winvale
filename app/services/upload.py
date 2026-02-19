@@ -40,11 +40,13 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         for p in db.query(ProductMaster).filter_by(client_id=client_id).all()
     }
 
-    inserted = updated = skipped = 0
+    new_rows_data = []
+
+    
+    
     batch_counter = 0
 
     for _, row in df.iterrows():
-
         row_data = {col: normalize(row.get(col), col) for col in df.columns}
 
         manufacturer = row_data.get("manufacturer")
@@ -54,27 +56,113 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
             skipped += 1
             continue
 
-        identity_sig = identity_signature(row_data)
-        history_sig = history_signature(row_data)
-
         product = existing_products.get((manufacturer, mpn))
 
         if not product:
 
-            master_payload = {
+            identity_sig = identity_signature(row_data)
+            history_sig = history_signature(row_data)
+            new_rows_data.append((row_data, identity_sig, history_sig))
+            continue
+
+
+        identity_sig = identity_signature(row_data)
+        history_sig = history_signature(row_data)
+        
+        current = (
+            db.query(ProductHistory)
+            .filter_by(product_id=product.product_id, is_current=True)
+            .first()
+        )
+
+        if current and current.row_signature == history_sig:
+            skipped += 1
+            continue
+
+        if current:
+            current.is_current = False
+            current.effective_end_date = datetime.utcnow()
+
+        history_payload = {
+            f: row_data.get(f)
+            for f in HISTORY_FIELDS
+            if row_data.get(f) is not None
+        }
+        history_payload["currency"] = history_payload.get("currency") or "USD"
+
+        db.add(
+            ProductHistory(
+                product_id=product.product_id,
+                client_id=client_id,
+                row_signature=history_sig,
+                is_current=True,
+                **history_payload,
+            )
+        )
+
+        for f in MASTER_FIELDS:
+            value = row_data.get(f)
+            if value is not None:
+                setattr(product, f, value)
+
+        product.row_signature = identity_sig
+
+        dim = product.dimension
+        if not dim:
+            dim_payload = {
                 f: row_data.get(f)
-                for f in MASTER_FIELDS
+                for f in DIM_FIELDS
                 if row_data.get(f) is not None
             }
+            db.add(ProductDim(product_id=product.product_id, **dim_payload))
+        else:
+            for f in DIM_FIELDS:
+                value = row_data.get(f)
+                if value is not None:
+                    setattr(dim, f, value)
 
-            product = ProductMaster(
-                client_id=client_id,
-                row_signature=identity_sig,
-                **master_payload,
-            )
+        updated += 1
+        batch_counter += 1
+        
 
-            db.add(product)
-            db.flush()
+        if batch_counter % 500 == 0:
+            db.commit()
+
+
+    db.commit()
+
+
+    
+    new_masters = []
+    new_masters = []
+    pending_inserts = []
+
+    for row_data, identity_sig, history_sig in new_rows_data:
+        master_payload = {
+            f: row_data.get(f)
+            for f in MASTER_FIELDS
+            if row_data.get(f) is not None
+        }
+        
+        product = ProductMaster(
+            client_id=client_id,
+            row_signature=identity_sig,
+            **master_payload,
+        )
+        
+        new_masters.append(product)
+        pending_inserts.append((product, row_data, history_sig))
+        inserted += 1
+
+    if new_masters:
+        db.add_all(new_masters)
+        db.flush()
+
+
+        new_histories = []
+        new_dims = []
+
+        for product, row_data, history_sig in pending_inserts:
 
             history_payload = {
                 f: row_data.get(f)
@@ -83,7 +171,7 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
             }
             history_payload["currency"] = history_payload.get("currency") or "USD"
 
-            db.add(
+            new_histories.append(
                 ProductHistory(
                     product_id=product.product_id,
                     client_id=client_id,
@@ -98,73 +186,12 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
                 for f in DIM_FIELDS
                 if row_data.get(f) is not None
             }
+            
+            new_dims.append(ProductDim(product_id=product.product_id, **dim_payload))
 
-            db.add(ProductDim(product_id=product.product_id, **dim_payload))
-
-            existing_products[(manufacturer, mpn)] = product
-            inserted += 1
-
-        else:
-
-            current = (
-                db.query(ProductHistory)
-                .filter_by(product_id=product.product_id, is_current=True)
-                .first()
-            )
-
-            if current and current.row_signature == history_sig:
-                skipped += 1
-                continue
-
-            if current:
-                current.is_current = False
-                current.effective_end_date = datetime.utcnow()
-
-            history_payload = {
-                f: row_data.get(f)
-                for f in HISTORY_FIELDS
-                if row_data.get(f) is not None
-            }
-            history_payload["currency"] = history_payload.get("currency") or "USD"
-
-            db.add(
-                ProductHistory(
-                    product_id=product.product_id,
-                    client_id=client_id,
-                    row_signature=history_sig,
-                    is_current=True,
-                    **history_payload,
-                )
-            )
-
-            for f in MASTER_FIELDS:
-                value = row_data.get(f)
-                if value is not None:
-                    setattr(product, f, value)
-
-            product.row_signature = identity_sig
-
-            dim = product.dimension
-            if not dim:
-                dim_payload = {
-                    f: row_data.get(f)
-                    for f in DIM_FIELDS
-                    if row_data.get(f) is not None
-                }
-                db.add(ProductDim(product_id=product.product_id, **dim_payload))
-            else:
-                for f in DIM_FIELDS:
-                    value = row_data.get(f)
-                    if value is not None:
-                        setattr(dim, f, value)
-
-            updated += 1
-
-        batch_counter += 1
-        if batch_counter % 500 == 0:
-            db.commit()
-
-    db.commit()
+        db.add_all(new_histories)
+        db.add_all(new_dims)
+        db.commit()
     redis_client.delete(f"products:client:{client_id}")
     file.file.seek(0)
 

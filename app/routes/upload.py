@@ -11,7 +11,7 @@ router = APIRouter(prefix="/upload", tags=["Upload"])
 
 
 @router.post("/{client_id}", status_code=status.HTTP_201_CREATED)
-async def upload_products(
+def upload_products(
     client_id: int,
     file: UploadFile = File(...),
     current_user=Depends(get_current_user),
@@ -30,11 +30,10 @@ async def upload_products(
         user_email=current_user["email"],
     )
 
-    # Invalidate product caches for this client and the full list
-    invalidate_keys(
-        redis_client,
-        "products:all",
-        f"products:client:{client_id}",
-    )
+    from app.utils.cache import invalidate_pattern
+    
+    invalidate_pattern(redis_client, "products:all*")
+    
+    invalidate_pattern(redis_client, f"products:client:{client_id}*")
 
     return result

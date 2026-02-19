@@ -21,4 +21,4 @@ ENV PYTHONPATH=/app
 
 EXPOSE 8000
 
-CMD ["./wait-for-db.sh", "gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "--workers", "2", "--bind", "0.0.0.0:8000", "--timeout", "120"]
+CMD ["./wait-for-db.sh", "gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "--workers", "2", "--bind", "0.0.0.0:8000", "--timeout", "600"]

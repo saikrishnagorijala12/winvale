@@ -46,3 +46,15 @@ def invalidate_keys(redis_client: Redis, *keys: str) -> None:
     """
     for key in keys:
         redis_client.delete(key)
+
+
+def invalidate_pattern(redis_client: Redis, pattern: str) -> int:
+    """
+    Invalidate all keys matching the given pattern using SCAN.
+    Returns the number of keys deleted.
+    """
+    count = 0
+    for key in redis_client.scan_iter(match=pattern):
+        redis_client.delete(key)
+        count += 1
+    return count
