@@ -121,6 +121,9 @@ def get_all(
  
     return {
         "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1),
         "items": result
     }
 
