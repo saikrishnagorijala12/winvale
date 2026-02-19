@@ -4,8 +4,20 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.dependencies import get_current_user
 from app.services import jobs as j
+from app.utils.cache import cache_get_or_set, invalidate_keys
+from app.redis_client import redis_client
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+CACHE_TTL = 86400
+
+
+def _invalidate_job_cache(job_id: int | None = None):
+    keys = ["jobs:all"]
+    if job_id is not None:
+        keys.append(f"jobs:id:{job_id}")
+    invalidate_keys(redis_client, *keys)
+
 
 @router.post("/{client_id}")
 def create_job(
@@ -13,27 +25,37 @@ def create_job(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return j.create_job(
+    result = j.create_job(
         db=db,
         client_id=client_id,
-        user_email=current_user["email"]
+        user_email=current_user["email"],
     )
+    _invalidate_job_cache()
+    return result
+
 
 @router.get("")
 def list_jobs(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return j.list_jobs(db)
+    return cache_get_or_set(
+        redis_client, "jobs:all", CACHE_TTL, lambda: j.list_jobs(db)
+    )
 
 
 @router.get("/{job_id}")
 def list_jobs_by_id(
-    job_id:int,
+    job_id: int,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return j.list_jobs_by_id(db, job_id,current_user["email"])
+    return cache_get_or_set(
+        redis_client,
+        f"jobs:id:{job_id}",
+        CACHE_TTL,
+        lambda: j.list_jobs_by_id(db, job_id, current_user["email"]),
+    )
 
 
 @router.post("/{job_id}/status")
@@ -44,18 +66,21 @@ def update_job_status(
     db: Session = Depends(get_db),
 ):
     if action == "approve":
-        return j.approve_job(
+        result = j.approve_job(
             db=db,
             job_id=job_id,
             user_email=current_user["email"],
         )
- 
+        _invalidate_job_cache(job_id)
+        return result
+
     if action == "reject":
-        return j.reject_job(
+        result = j.reject_job(
             db=db,
             job_id=job_id,
             user_email=current_user["email"],
         )
- 
+        _invalidate_job_cache(job_id)
+        return result
+
     raise HTTPException(status_code=400, detail="Invalid action")
- 

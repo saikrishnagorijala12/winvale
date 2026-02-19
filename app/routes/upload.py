@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.dependencies import get_current_user
 from app.services.upload import upload_products as upload_products_service
+from app.utils.cache import invalidate_keys
+from app.redis_client import redis_client
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -21,9 +23,18 @@ async def upload_products(
             detail="Only Excel (.xlsx) files are allowed",
         )
 
-    return upload_products_service(
+    result = upload_products_service(
         db=db,
         client_id=client_id,
         file=file,
         user_email=current_user["email"],
     )
+
+    # Invalidate product caches for this client and the full list
+    invalidate_keys(
+        redis_client,
+        "products:all",
+        f"products:client:{client_id}",
+    )
+
+    return result
