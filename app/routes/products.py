@@ -15,19 +15,20 @@ CACHE_TTL = 86400
 
 @router.get("")
 def get_all(
+    page: int = 1,
+    page_size: int = 50,
+    search: str | None = None,
+    client_id: int | None = None,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return prod.get_all(db)
-
-
-@router.get("/id/{product_id}")
-def get_product_by_id(
-    product_id: int,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return prod.get_by_id(db, product_id)
+    return prod.get_all(
+        db=db,
+        page=page,
+        page_size=page_size,
+        search=search,
+        client_id=client_id,
+    )
 
 @router.get("/client/{client_id}")
 def get_product_by_client(
