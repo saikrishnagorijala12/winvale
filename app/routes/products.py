@@ -15,17 +15,10 @@ CACHE_TTL = 86400
 
 @router.get("")
 def get_all(
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(100, ge=1, le=500, description="Items per page"),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return cache_get_or_set(
-        redis_client,
-        f"products:all:page:{page}:size:{page_size}",
-        CACHE_TTL,
-        lambda: prod.get_all(db, page=page, page_size=page_size),
-    )
+    return prod.get_all(db)
 
 
 @router.get("/id/{product_id}")
@@ -34,25 +27,69 @@ def get_product_by_id(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return cache_get_or_set(
-        redis_client,
-        f"products:id:{product_id}",
-        CACHE_TTL,
-        lambda: prod.get_by_id(db, product_id),
-    )
-
+    return prod.get_by_id(db, product_id)
 
 @router.get("/client/{client_id}")
 def get_product_by_client(
     client_id: int,
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(100, ge=1, le=500, description="Items per page"),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return cache_get_or_set(
-        redis_client,
-        f"products:client:{client_id}:page:{page}:size:{page_size}",
-        CACHE_TTL,
-        lambda: prod.get_by_client(db, client_id, page=page, page_size=page_size),
-    )
+    cache_key = f"products:client:{client_id}"
+
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    data = prod.get_by_client(db, client_id)
+
+    redis_client.setex(
+    cache_key,
+    300,
+    json.dumps(jsonable_encoder(data))
+)
+    return data
+
+# @router.get("")
+# def get_all(
+#     page: int = Query(1, ge=1, description="Page number"),
+#     page_size: int = Query(100, ge=1, le=500, description="Items per page"),
+#     current_user=Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     return cache_get_or_set(
+#         redis_client,
+#         f"products:all:page:{page}:size:{page_size}",
+#         CACHE_TTL,
+#         lambda: prod.get_all(db, page=page, page_size=page_size),
+#     )
+
+
+# @router.get("/id/{product_id}")
+# def get_product_by_id(
+#     product_id: int,
+#     current_user=Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     return cache_get_or_set(
+#         redis_client,
+#         f"products:id:{product_id}",
+#         CACHE_TTL,
+#         lambda: prod.get_by_id(db, product_id),
+#     )
+
+
+# @router.get("/client/{client_id}")
+# def get_product_by_client(
+#     client_id: int,
+#     page: int = Query(1, ge=1, description="Page number"),
+#     page_size: int = Query(100, ge=1, le=500, description="Items per page"),
+#     current_user=Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     return cache_get_or_set(
+#         redis_client,
+#         f"products:client:{client_id}:page:{page}:size:{page_size}",
+#         CACHE_TTL,
+#         lambda: prod.get_by_client(db, client_id, page=page, page_size=page_size),
+#     )
