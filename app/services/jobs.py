@@ -9,6 +9,7 @@ from app.models import (
     ModificationAction,
     ClientProfile
 )
+from sqlalchemy.orm import joinedload
 from app.utils.name_to_id import get_status_id_by_name
 from datetime import datetime
 from app.utils.scd_helper import create_product_history_snapshot
