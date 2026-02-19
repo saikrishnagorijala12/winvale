@@ -34,14 +34,38 @@ def create_job(
     return result
 
 
+# @router.get("")
+# def list_jobs(
+#     current_user=Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     return cache_get_or_set(
+#         redis_client, "jobs:all", CACHE_TTL, lambda: j.list_jobs(db)
+#     )
+
 @router.get("")
 def list_jobs(
+    page: int = 1,
+    page_size: int = 50,
+    search: str | None = None,
+    client_id: int | None = None,
+    status: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return cache_get_or_set(
-        redis_client, "jobs:all", CACHE_TTL, lambda: j.list_jobs(db)
+    return j.list_jobs(
+        db=db,
+        page=page,
+        page_size=page_size,
+        search=search,
+        client_id=client_id,
+        status=status,
+        date_from=date_from,
+        date_to=date_to,
     )
+
 
 
 @router.get("/{job_id}")

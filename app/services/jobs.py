@@ -91,10 +91,99 @@ def create_job(db: Session, client_id: int, email: str):
  
 #     return response
 
-def list_jobs(db: Session):
-    jobs = (
+# def list_jobs(db: Session):
+#     jobs = (
+#         db.query(Job)
+#         .order_by(Job.created_time.desc())
+#         .all()
+#     )
+ 
+#     response = []
+ 
+#     for j in jobs:
+#         action_counter = Counter()
+ 
+#         for a in j.modification_actions:
+#             action_counter[a.action_type] += 1
+ 
+#         response.append({
+#             "job_id": j.job_id,
+#             "client_id": j.client_id,
+#             "contract_number": j.client.contracts.contract_number,
+#             "client": j.client.company_name,
+#             "user_id": j.user_id,
+#             "user": j.user.name,
+#             "status": j.status.status,
+#             "action_summary": dict(action_counter),  
+#             "created_time": j.created_time,
+#             "updated_time": j.updated_time,
+#         })
+ 
+#     return response
+ 
+def list_jobs(
+    db: Session,
+    page: int = 1,
+    page_size: int = 50,
+    search: str | None = None,
+    client_id: int | None = None,
+    status: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+):
+ 
+    query = (
         db.query(Job)
+        .join(Job.client)
+        .join(ClientProfile.contracts)
+        .join(Job.user)
+        .join(Job.status)
+    )
+ 
+ 
+    # Client filter
+    if client_id:
+        query = query.filter(Job.client_id == client_id)
+ 
+    # Status filter
+    if status and status.lower() != "all":
+        query = query.filter(Status.status == status)
+ 
+    # Date range
+    if date_from:
+        query = query.filter(Job.created_time >= date_from)
+ 
+    if date_to:
+        query = query.filter(Job.created_time <= date_to)
+ 
+    # Search filter
+    if search:
+        term = f"%{search}%"
+ 
+        query = query.filter(
+            or_(
+                ClientProfile.company_name.ilike(term),
+                User.name.ilike(term),
+                ClientContracts.contract_number.ilike(term),
+            )
+        )
+ 
+ 
+    total = query.count()
+ 
+    offset = (page - 1) * page_size
+ 
+    jobs = (
+        query
+        .options(
+            joinedload(Job.client).joinedload(ClientProfile.contracts),
+            joinedload(Job.user),
+            joinedload(Job.status),
+            joinedload(Job.modification_actions),
+        )
         .order_by(Job.created_time.desc())
+        .offset(offset)
+        .limit(page_size)
         .all()
     )
  
@@ -109,18 +198,27 @@ def list_jobs(db: Session):
         response.append({
             "job_id": j.job_id,
             "client_id": j.client_id,
-            "contract_number": j.client.contracts.contract_number,
-            "client": j.client.company_name,
+            "contract_number": (
+                j.client.contracts.contract_number
+                if j.client and j.client.contracts
+                else None
+            ),
+            "client": j.client.company_name if j.client else None,
             "user_id": j.user_id,
-            "user": j.user.name,
-            "status": j.status.status,
-            "action_summary": dict(action_counter),  
+            "user": j.user.name if j.user else None,
+            "status": j.status.status if j.status else None,
+            "action_summary": dict(action_counter),
             "created_time": j.created_time,
             "updated_time": j.updated_time,
         })
  
-    return response
- 
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size,
+        "items": response,
+    }
  
 # def list_jobs(db: Session):
 #     jobs = (
