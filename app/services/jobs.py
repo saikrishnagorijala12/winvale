@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from datetime import datetime
 from fastapi import HTTPException
 from app.models import (
@@ -7,7 +8,9 @@ from app.models import (
     ProductMaster,
     ProductHistory,
     ModificationAction,
-    ClientProfile
+    ClientProfile,
+    ClientContracts,
+    Status,
 )
 from sqlalchemy.orm import joinedload
 from app.utils.name_to_id import get_status_id_by_name

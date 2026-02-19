@@ -32,7 +32,14 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
     file.file.seek(0)
     wb = load_workbook(file.file, read_only=True, data_only=True)
-    sheet = wb.active
+
+    SHEET_NAME = "PRODUCTS"
+    if SHEET_NAME not in wb.sheetnames:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Sheet '{SHEET_NAME}' not found. Please ensure your Excel file contains a sheet named '{SHEET_NAME}'.",
+        )
+    sheet = wb[SHEET_NAME]
 
     rows = sheet.iter_rows(values_only=True)
     next(rows)
