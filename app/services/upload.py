@@ -47,36 +47,42 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
     inserted = 0
     updated = 0
+    reactivated = 0
+    deleted = 0
     skipped = 0
     batch_counter = 0
 
-    existing_keys = set(
-        db.execute(
-            select(
-                ProductMaster.manufacturer,
-                ProductMaster.manufacturer_part_number,
-                ProductMaster.product_id,
-                ProductMaster.row_signature
-            ).where(ProductMaster.client_id == client_id)
-        ).all()
-    )
+    # Load ALL products for this client (including soft-deleted) so we can
+    # detect reactivations and track what's missing from the new upload.
+    existing_rows = db.execute(
+        select(
+            ProductMaster.manufacturer,
+            ProductMaster.manufacturer_part_number,
+            ProductMaster.product_id,
+            ProductMaster.row_signature,
+            ProductMaster.is_deleted,
+        ).where(ProductMaster.client_id == client_id)
+    ).all()
 
+    # (manufacturer, mpn) → (product_id, row_signature, is_deleted)
     product_lookup = {
-        (m, mpn): (pid, sig)
-        for (m, mpn, pid, sig) in existing_keys
+        (m, mpn): (pid, sig, is_del)
+        for (m, mpn, pid, sig, is_del) in existing_rows
     }
 
     history_lookup = dict(
         db.execute(
             select(
                 ProductHistory.product_id,
-                ProductHistory.row_signature
+                ProductHistory.row_signature,
             ).where(
                 ProductHistory.client_id == client_id,
-                ProductHistory.is_current == True
+                ProductHistory.is_current == True,
             )
         ).all()
     )
+
+    seen_product_ids = set()
 
     for excel_row in rows:
 
@@ -97,7 +103,7 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         existing = product_lookup.get((manufacturer, mpn))
 
         if not existing:
-
+            # Scenario 1: Brand-new product
             master_payload = {
                 f: row_data.get(f)
                 for f in MASTER_FIELDS
@@ -107,6 +113,7 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
             product = ProductMaster(
                 client_id=client_id,
                 row_signature=identity_sig,
+                is_deleted=False,
                 **master_payload,
             )
 
@@ -138,99 +145,176 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
             db.add(ProductDim(product_id=product.product_id, **dim_payload))
 
-            product_lookup[(manufacturer, mpn)] = (
-                product.product_id,
-                identity_sig,
-            )
-
+            product_lookup[(manufacturer, mpn)] = (product.product_id, identity_sig, False)
             history_lookup[product.product_id] = history_sig
+            seen_product_ids.add(product.product_id)
 
             inserted += 1
             batch_counter += 1
 
         else:
+            product_id, _, is_del = existing
+            seen_product_ids.add(product_id)
 
-            product_id, _ = existing
-            current_history_sig = history_lookup.get(product_id)
-
-            if current_history_sig == history_sig:
-                skipped += 1
-                continue
-
-            db.execute(
-                update(ProductHistory)
-                .where(
-                    ProductHistory.product_id == product_id,
-                    ProductHistory.is_current == True
+            if is_del:
+                # Scenario 4: Previously deleted product reappears — reactivate it.
+                # Always write even if history signature hasn't changed.
+                db.execute(
+                    update(ProductMaster)
+                    .where(ProductMaster.product_id == product_id)
+                    .values(
+                        **{
+                            f: row_data.get(f)
+                            for f in MASTER_FIELDS
+                            if row_data.get(f) is not None
+                        },
+                        row_signature=identity_sig,
+                        is_deleted=False,
+                    )
                 )
-                .values(is_current=False)
-            )
 
-            history_payload = {
-                f: row_data.get(f)
-                for f in HISTORY_FIELDS
-                if row_data.get(f) is not None
-            }
-            history_payload["currency"] = history_payload.get("currency") or "USD"
-
-            db.add(
-                ProductHistory(
-                    product_id=product_id,
-                    client_id=client_id,
-                    row_signature=history_sig,
-                    is_current=True,
-                    **history_payload,
+                db.execute(
+                    update(ProductHistory)
+                    .where(
+                        ProductHistory.product_id == product_id,
+                        ProductHistory.is_current == True,
+                    )
+                    .values(is_current=False)
                 )
-            )
 
-            db.execute(
-                update(ProductMaster)
-                .where(ProductMaster.product_id == product_id)
-                .values(
-                    **{
-                        f: row_data.get(f)
-                        for f in MASTER_FIELDS
-                        if row_data.get(f) is not None
-                    },
-                    row_signature=identity_sig
+                history_payload = {
+                    f: row_data.get(f)
+                    for f in HISTORY_FIELDS
+                    if row_data.get(f) is not None
+                }
+                history_payload["currency"] = history_payload.get("currency") or "USD"
+
+                db.add(
+                    ProductHistory(
+                        product_id=product_id,
+                        client_id=client_id,
+                        row_signature=history_sig,
+                        is_current=True,
+                        **history_payload,
+                    )
                 )
-            )
 
-            db.execute(
-                update(ProductDim)
-                .where(ProductDim.product_id == product_id)
-                .values(
-                    **{
-                        f: row_data.get(f)
-                        for f in DIM_FIELDS
-                        if row_data.get(f) is not None
-                    }
+                db.execute(
+                    update(ProductDim)
+                    .where(ProductDim.product_id == product_id)
+                    .values(
+                        **{
+                            f: row_data.get(f)
+                            for f in DIM_FIELDS
+                            if row_data.get(f) is not None
+                        }
+                    )
                 )
-            )
 
-            history_lookup[product_id] = history_sig
-            updated += 1
-            batch_counter += 1
+                history_lookup[product_id] = history_sig
+                reactivated += 1
+                batch_counter += 1
+
+            else:
+                # Scenario 2: Active product already exists — update only if content changed.
+                current_history_sig = history_lookup.get(product_id)
+
+                if current_history_sig == history_sig:
+                    skipped += 1
+                    continue
+
+                db.execute(
+                    update(ProductHistory)
+                    .where(
+                        ProductHistory.product_id == product_id,
+                        ProductHistory.is_current == True,
+                    )
+                    .values(is_current=False)
+                )
+
+                history_payload = {
+                    f: row_data.get(f)
+                    for f in HISTORY_FIELDS
+                    if row_data.get(f) is not None
+                }
+                history_payload["currency"] = history_payload.get("currency") or "USD"
+
+                db.add(
+                    ProductHistory(
+                        product_id=product_id,
+                        client_id=client_id,
+                        row_signature=history_sig,
+                        is_current=True,
+                        **history_payload,
+                    )
+                )
+
+                db.execute(
+                    update(ProductMaster)
+                    .where(ProductMaster.product_id == product_id)
+                    .values(
+                        **{
+                            f: row_data.get(f)
+                            for f in MASTER_FIELDS
+                            if row_data.get(f) is not None
+                        },
+                        row_signature=identity_sig,
+                        is_deleted=False,
+                    )
+                )
+
+                db.execute(
+                    update(ProductDim)
+                    .where(ProductDim.product_id == product_id)
+                    .values(
+                        **{
+                            f: row_data.get(f)
+                            for f in DIM_FIELDS
+                            if row_data.get(f) is not None
+                        }
+                    )
+                )
+
+                history_lookup[product_id] = history_sig
+                updated += 1
+                batch_counter += 1
 
         if batch_counter >= BATCH_SIZE:
             db.commit()
             batch_counter = 0
+
+    # Scenario 3: Soft-delete active products that were NOT present in the Excel.
+    active_ids_before = {
+        pid
+        for (_, _, pid, _, is_del) in existing_rows
+        if not is_del
+    }
+    to_delete_ids = active_ids_before - seen_product_ids
+
+    if to_delete_ids:
+        db.execute(
+            update(ProductMaster)
+            .where(ProductMaster.product_id.in_(to_delete_ids))
+            .values(is_deleted=True)
+        )
+        deleted = len(to_delete_ids)
 
     db.commit()
 
     invalidate_pattern(redis_client, "products:all*")
     invalidate_pattern(redis_client, f"products:client:{client_id}*")
 
-    if inserted or updated:
+    if inserted or updated or reactivated:
         file.file.seek(0)
         s3.save_uploaded_file(
             db, client_id, file, user_email, "gsa_upload"
         )
 
     return {
-        "status_code": 201 if inserted or updated else 200,
+        "status_code": 201 if inserted or updated or reactivated else 200,
         "inserted": inserted,
         "updated": updated,
+        "reactivated": reactivated,
+        "deleted": deleted,
         "skipped": skipped,
     }
-
