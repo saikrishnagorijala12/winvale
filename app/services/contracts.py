@@ -89,16 +89,35 @@ def update_contract_by_client_id(
     client_id: int,
     payload: ClientContractUpdate
 ):
+    from fastapi import HTTPException, status as http_status
+
     contract = get_contract_by_client_id(db, client_id)
     if not contract:
         return None
+
+    # --- Unique constraint check: contract_number ---
+    if payload.contract_number and payload.contract_number != contract.contract_number:
+        dup = (
+            db.query(ClientContracts)
+            .filter(
+                ClientContracts.contract_number == payload.contract_number,
+                ClientContracts.client_id != client_id,
+            )
+            .first()
+        )
+        if dup:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"Contract number '{payload.contract_number}' is already assigned to another client",
+            )
+    # ------------------------------------------------
 
     contract.contract_officer_name = payload.contract_officer_name
     contract.contract_officer_address = payload.contract_officer_address
     contract.contract_officer_city = payload.contract_officer_city
     contract.contract_officer_state = payload.contract_officer_state
     contract.contract_officer_zip = payload.contract_officer_zip
-    
+
     contract.contract_number = payload.contract_number
     contract.origin_country = payload.origin_country
     contract.gsa_proposed_discount = payload.gsa_proposed_discount

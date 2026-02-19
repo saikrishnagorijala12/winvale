@@ -172,23 +172,85 @@ def update_client(
         .filter(ClientProfile.client_id == client_id)
         .first()
     )
- 
+
     if not client:
         return None
- 
+
     update_data = data.model_dump(exclude_unset=True)
+
+    # --- Unique constraint checks (exclude the client being edited) ---
+    if "company_email" in update_data:
+        dup = (
+            db.query(ClientProfile)
+            .filter(
+                ClientProfile.company_email == update_data["company_email"],
+                ClientProfile.client_id != client_id,
+            )
+            .first()
+        )
+        if dup:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Company email is already in use by another client",
+            )
+
+    if "company_phone_no" in update_data:
+        dup = (
+            db.query(ClientProfile)
+            .filter(
+                ClientProfile.company_phone_no == update_data["company_phone_no"],
+                ClientProfile.client_id != client_id,
+            )
+            .first()
+        )
+        if dup:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Company phone number is already in use by another client",
+            )
+
+    if "contact_officer_email" in update_data:
+        dup = (
+            db.query(ClientProfile)
+            .filter(
+                ClientProfile.contact_officer_email == update_data["contact_officer_email"],
+                ClientProfile.client_id != client_id,
+            )
+            .first()
+        )
+        if dup:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Contact officer email is already in use by another client",
+            )
+
+    if "contact_officer_phone_no" in update_data:
+        dup = (
+            db.query(ClientProfile)
+            .filter(
+                ClientProfile.contact_officer_phone_no == update_data["contact_officer_phone_no"],
+                ClientProfile.client_id != client_id,
+            )
+            .first()
+        )
+        if dup:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Contact officer phone number is already in use by another client",
+            )
+    # -----------------------------------------------------------------
 
     if "status" in update_data:
         client.status_id = get_status_id_by_name(db, update_data.pop("status"))
 
     for field, value in update_data.items():
         setattr(client, field, value)
- 
+
     client.updated_time = datetime.utcnow()
- 
+
     db.commit()
     db.refresh(client)
- 
+
     return serialize_client(client)
  
  
