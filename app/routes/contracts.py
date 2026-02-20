@@ -16,7 +16,7 @@ from app.redis_client import redis_client
 
 router = APIRouter(prefix="/contracts", tags=["Contrats"])
 
-CACHE_TTL = 86400
+CACHE_TTL = 300  # 5 minutes
 
 
 def _invalidate_contract_cache(client_id: int | None = None):

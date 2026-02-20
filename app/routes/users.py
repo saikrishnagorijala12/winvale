@@ -12,7 +12,7 @@ from app.redis_client import redis_client
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-CACHE_TTL = 86400
+CACHE_TTL = 300  # 5 minutes
 
 
 def _invalidate_user_cache(email: str):

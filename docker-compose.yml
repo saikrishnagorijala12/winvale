@@ -22,6 +22,7 @@ services:
     networks:
       - winvale-net
     restart: always
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
 
   backend:
     build: .

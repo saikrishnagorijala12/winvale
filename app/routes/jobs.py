@@ -4,12 +4,12 @@ from datetime import datetime
 from app.database import get_db
 from app.auth.dependencies import get_current_user
 from app.services import jobs as j
-from app.utils.cache import cache_get_or_set, invalidate_keys
+from app.utils.cache import cache_get_or_set, invalidate_keys, invalidate_pattern
 from app.redis_client import redis_client
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
-CACHE_TTL = 86400
+CACHE_TTL = 300  # 5 minutes
 
 
 def _invalidate_job_cache(job_id: int | None = None):
@@ -17,6 +17,8 @@ def _invalidate_job_cache(job_id: int | None = None):
     if job_id is not None:
         keys.append(f"jobs:id:{job_id}")
     invalidate_keys(redis_client, *keys)
+    # Wipe all paginated/filtered list cache entries
+    invalidate_pattern(redis_client, "jobs:list:*")
 
 
 @router.post("/{client_id}")
@@ -46,15 +48,26 @@ def list_jobs(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return j.list_jobs(
-        db=db,
-        page=page,
-        page_size=page_size,
-        search=search,
-        client_id=client_id,
-        status=status,
-        date_from=date_from,
-        date_to=date_to,
+    cache_key = (
+        f"jobs:list:"
+        f"page={page}:size={page_size}:search={search}:"
+        f"client={client_id}:status={status}:"
+        f"from={date_from}:to={date_to}"
+    )
+    return cache_get_or_set(
+        redis_client,
+        cache_key,
+        CACHE_TTL,
+        lambda: j.list_jobs(
+            db=db,
+            page=page,
+            page_size=page_size,
+            search=search,
+            client_id=client_id,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        ),
     )
 
 

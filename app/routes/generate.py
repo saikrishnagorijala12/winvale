@@ -8,7 +8,7 @@ from app.redis_client import redis_client
 
 router = APIRouter(prefix="/generate", tags=["Generate Documents"])
 
-CACHE_TTL = 86400
+CACHE_TTL = 300  # 5 minutes
 
 
 @router.get("/{job_id}")
