@@ -125,15 +125,27 @@ def get_by_id(db: Session, product_id: int):
     return _serialize_product(p, p.dimension)
 
 
-def get_by_client(db: Session, client_id: int):
+def get_by_client(
+    db: Session, 
+    client_id: int,
+    page: int = 1,
+    page_size: int = 50,
+    search: Optional[str] = None
+):
     query = _base_query(db).filter(ProductMaster.client_id == client_id)
-    total = query.count()
-
-    if total == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No products found for given client",
+    
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            or_(
+                ProductMaster.item_name.ilike(term),
+                ProductMaster.manufacturer.ilike(term),
+                ProductMaster.manufacturer_part_number.ilike(term),
+            )
         )
+        
+    total = query.count()
+    offset = (page - 1) * page_size
 
     products = (
         query
@@ -141,11 +153,17 @@ def get_by_client(db: Session, client_id: int):
             joinedload(ProductMaster.client),
             joinedload(ProductMaster.dimension),
         )
+        .order_by(ProductMaster.created_time.desc())
+        .offset(offset)
+        .limit(page_size)
         .all()
     )
 
     return {
         "client_id": client_id,
         "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
         "items": [_serialize_product(p, p.dimension) for p in products],
     }

@@ -74,14 +74,17 @@ def list_jobs(
 @router.get("/{job_id}")
 def list_jobs_by_id(
     job_id: int,
+    page: int = 1,
+    page_size: int = 50,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    cache_key = f"jobs:id:{job_id}:page={page}:size={page_size}"
     return cache_get_or_set(
         redis_client,
-        f"jobs:id:{job_id}",
+        cache_key,
         CACHE_TTL,
-        lambda: j.list_jobs_by_id(db, job_id, current_user["email"]),
+        lambda: j.list_jobs_by_id(db, job_id, current_user["email"], page, page_size),
     )
 
 

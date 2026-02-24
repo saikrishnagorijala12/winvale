@@ -123,12 +123,12 @@ def create_client_profile(db: Session, payload: ClientProfileCreate, current_use
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Company Phone already exsits"
             )
-    if db.query(ClientProfile).filter(ClientProfile.contact_officer_email == payload.contact_officer_email).first():
+    if payload.contact_officer_email is not None and db.query(ClientProfile).filter(ClientProfile.contact_officer_email == payload.contact_officer_email).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Contact Officer Email already exsits"
             )
-    if db.query(ClientProfile).filter(ClientProfile.contact_officer_phone_no == payload.contact_officer_phone_no).first():
+    if payload.contact_officer_phone_no is not None and db.query(ClientProfile).filter(ClientProfile.contact_officer_phone_no == payload.contact_officer_phone_no).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Contact Officer Phone already exsits"
@@ -183,7 +183,7 @@ def update_client(
     update_data = data.model_dump(exclude_unset=True)
 
     # --- Unique constraint checks (exclude the client being edited) ---
-    if "company_email" in update_data:
+    if update_data.get("company_email") is not None:
         dup = (
             db.query(ClientProfile)
             .filter(
@@ -198,7 +198,7 @@ def update_client(
                 detail="Company email is already in use by another client",
             )
 
-    if "company_phone_no" in update_data:
+    if update_data.get("company_phone_no") is not None:
         dup = (
             db.query(ClientProfile)
             .filter(
@@ -213,7 +213,7 @@ def update_client(
                 detail="Company phone number is already in use by another client",
             )
 
-    if "contact_officer_email" in update_data:
+    if update_data.get("contact_officer_email") is not None:
         dup = (
             db.query(ClientProfile)
             .filter(
@@ -228,7 +228,7 @@ def update_client(
                 detail="Contact officer email is already in use by another client",
             )
 
-    if "contact_officer_phone_no" in update_data:
+    if update_data.get("contact_officer_phone_no") is not None:
         dup = (
             db.query(ClientProfile)
             .filter(

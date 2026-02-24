@@ -134,17 +134,42 @@ def list_jobs(
     }
 
 
-def list_jobs_by_id(db: Session, job_id: int, user_email: str):
+def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, page_size: int = 50):
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
 
-    job = db.query(Job).filter_by(job_id=job_id).one_or_none()
+    job = (
+        db.query(Job)
+        .options(
+            joinedload(Job.client).joinedload(ClientProfile.contracts),
+            joinedload(Job.user),
+            joinedload(Job.status)
+        )
+        .filter_by(job_id=job_id)
+        .one_or_none()
+    )
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    actions_query = db.query(ModificationAction).filter_by(job_id=job_id)
+    total_actions = actions_query.count()
+    offset = (page - 1) * page_size
+
+    paginated_actions = (
+        actions_query
+        .options(
+            joinedload(ModificationAction.product),
+            joinedload(ModificationAction.cpl_item)
+        )
+        .order_by(ModificationAction.created_time.asc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
     actions = []
-    for a in job.modification_actions:
+    for a in paginated_actions:
         p_name = None
         p_number = None
 
@@ -172,12 +197,16 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str):
     return {
         "job_id": job.job_id,
         "client_id": job.client_id,
-        "contract_number": job.client.contracts.contract_number,
-        "client": job.client.company_name,
+        "contract_number": job.client.contracts.contract_number if job.client and job.client.contracts else None,
+        "client": job.client.company_name if job.client else None,
         "user_id": job.user_id,
-        "user": job.user.name,
-        "status": job.status.status,
+        "user": job.user.name if job.user else None,
+        "status": job.status.status if job.status else None,
         "modifications_actions": actions,
+        "total_actions": total_actions,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total_actions + page_size - 1) // page_size if total_actions > 0 else 0,
         "created_time": job.created_time,
         "updated_time": job.updated_time,
     }
