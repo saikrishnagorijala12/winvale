@@ -133,12 +133,11 @@ def list_jobs(
         "items": response,
     }
 
-
-def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, page_size: int = 50):
+def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, page_size: int = 50, action_type: str | None = None):
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
-
+ 
     job = (
         db.query(Job)
         .options(
@@ -151,11 +150,14 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
     )
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-
+ 
     actions_query = db.query(ModificationAction).filter_by(job_id=job_id)
+    if action_type and action_type.lower() != "all":
+        actions_query = actions_query.filter(ModificationAction.action_type == action_type)
+ 
     total_actions = actions_query.count()
     offset = (page - 1) * page_size
-
+ 
     paginated_actions = (
         actions_query
         .options(
@@ -167,19 +169,19 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
         .limit(page_size)
         .all()
     )
-
+ 
     actions = []
     for a in paginated_actions:
         p_name = None
         p_number = None
-
+ 
         if a.product:
             p_name = a.product.item_name
             p_number = a.product.manufacturer_part_number
         elif a.cpl_item:
             p_name = a.cpl_item.item_name
             p_number = a.cpl_item.manufacturer_part_number
-
+ 
         actions.append({
             "action_id": a.action_id,
             "action_type": a.action_type,
@@ -193,7 +195,15 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
             "number_of_items_impacted": a.number_of_items_impacted,
             "created_time": a.created_time,
         })
-
+ 
+    # Calculate summary counts for all action types
+    summary_counts = db.query(
+        ModificationAction.action_type,
+        func.count(ModificationAction.action_id)
+    ).filter_by(job_id=job_id).group_by(ModificationAction.action_type).all()
+    
+    action_summary = {t: count for t, count in summary_counts}
+ 
     return {
         "job_id": job.job_id,
         "client_id": job.client_id,
@@ -203,6 +213,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
         "user": job.user.name if job.user else None,
         "status": job.status.status if job.status else None,
         "modifications_actions": actions,
+        "action_summary": action_summary,
         "total_actions": total_actions,
         "page": page,
         "page_size": page_size,
@@ -210,6 +221,83 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
         "created_time": job.created_time,
         "updated_time": job.updated_time,
     }
+
+# def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, page_size: int = 50):
+#     user = db.query(User).filter_by(email=user_email).first()
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Invalid user")
+
+#     job = (
+#         db.query(Job)
+#         .options(
+#             joinedload(Job.client).joinedload(ClientProfile.contracts),
+#             joinedload(Job.user),
+#             joinedload(Job.status)
+#         )
+#         .filter_by(job_id=job_id)
+#         .one_or_none()
+#     )
+#     if not job:
+#         raise HTTPException(status_code=404, detail="Job not found")
+
+#     actions_query = db.query(ModificationAction).filter_by(job_id=job_id)
+#     total_actions = actions_query.count()
+#     offset = (page - 1) * page_size
+
+#     paginated_actions = (
+#         actions_query
+#         .options(
+#             joinedload(ModificationAction.product),
+#             joinedload(ModificationAction.cpl_item)
+#         )
+#         .order_by(ModificationAction.created_time.asc())
+#         .offset(offset)
+#         .limit(page_size)
+#         .all()
+#     )
+
+#     actions = []
+#     for a in paginated_actions:
+#         p_name = None
+#         p_number = None
+
+#         if a.product:
+#             p_name = a.product.item_name
+#             p_number = a.product.manufacturer_part_number
+#         elif a.cpl_item:
+#             p_name = a.cpl_item.item_name
+#             p_number = a.cpl_item.manufacturer_part_number
+
+#         actions.append({
+#             "action_id": a.action_id,
+#             "action_type": a.action_type,
+#             "product_id": a.product_id,
+#             "product_name": p_name,
+#             "manufacturer_part_number": p_number,
+#             "old_price": a.old_price,
+#             "new_price": a.new_price,
+#             "old_description": a.old_description,
+#             "new_description": a.new_description,
+#             "number_of_items_impacted": a.number_of_items_impacted,
+#             "created_time": a.created_time,
+#         })
+
+#     return {
+#         "job_id": job.job_id,
+#         "client_id": job.client_id,
+#         "contract_number": job.client.contracts.contract_number if job.client and job.client.contracts else None,
+#         "client": job.client.company_name if job.client else None,
+#         "user_id": job.user_id,
+#         "user": job.user.name if job.user else None,
+#         "status": job.status.status if job.status else None,
+#         "modifications_actions": actions,
+#         "total_actions": total_actions,
+#         "page": page,
+#         "page_size": page_size,
+#         "total_pages": (total_actions + page_size - 1) // page_size if total_actions > 0 else 0,
+#         "created_time": job.created_time,
+#         "updated_time": job.updated_time,
+#     }
 
 
 def approve_job(db: Session, job_id: int, user_email: str):

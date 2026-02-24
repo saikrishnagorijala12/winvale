@@ -13,12 +13,12 @@ CACHE_TTL = 300  # 5 minutes
 
 
 def _invalidate_job_cache(job_id: int | None = None):
-    keys = ["jobs:all"]
-    if job_id is not None:
-        keys.append(f"jobs:id:{job_id}")
-    invalidate_keys(redis_client, *keys)
+    invalidate_keys(redis_client, "jobs:all")
     # Wipe all paginated/filtered list cache entries
     invalidate_pattern(redis_client, "jobs:list:*")
+    if job_id is not None:
+        # Wipe all paginated/filtered job details cache entries
+        invalidate_pattern(redis_client, f"jobs:id:{job_id}*")
 
 
 @router.post("/{client_id}")
@@ -70,22 +70,37 @@ def list_jobs(
         ),
     )
 
-
 @router.get("/{job_id}")
 def list_jobs_by_id(
     job_id: int,
     page: int = 1,
     page_size: int = 50,
+    action_type: str | None = Query(None),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    cache_key = f"jobs:id:{job_id}:page={page}:size={page_size}"
+    cache_key = f"jobs:id:{job_id}:page={page}:size={page_size}:action={action_type}"
     return cache_get_or_set(
         redis_client,
         cache_key,
         CACHE_TTL,
-        lambda: j.list_jobs_by_id(db, job_id, current_user["email"], page, page_size),
+        lambda: j.list_jobs_by_id(db, job_id, current_user["email"], page, page_size, action_type),
     )
+# @router.get("/{job_id}")
+# def list_jobs_by_id(
+#     job_id: int,
+#     page: int = 1,
+#     page_size: int = 50,
+#     current_user=Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     cache_key = f"jobs:id:{job_id}:page={page}:size={page_size}"
+#     return cache_get_or_set(
+#         redis_client,
+#         cache_key,
+#         CACHE_TTL,
+#         lambda: j.list_jobs_by_id(db, job_id, current_user["email"], page, page_size),
+#     )
 
 
 @router.post("/{job_id}/status")
