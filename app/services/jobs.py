@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from datetime import datetime
 from fastapi import HTTPException
 from collections import Counter
