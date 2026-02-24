@@ -4,6 +4,157 @@ from app.models.product_master import ProductMaster
 from app.models.client_profiles import ClientProfile
 from datetime import datetime, timezone
 from typing import Optional
+from app.models.modification_action import ModificationAction
+
+
+def export_price_modifications_excel(db: Session, client_id: Optional[int] = None, job_id: Optional[int] = None):
+    query = (
+        db.query(ModificationAction)
+        .options(
+            joinedload(ModificationAction.product).joinedload(ProductMaster.dimension),
+            joinedload(ModificationAction.product).joinedload(ProductMaster.client)
+        )
+        .filter(ModificationAction.action_type.in_(["PRICE_INCREASE", "PRICE_DECREASE"]))
+        .filter(ModificationAction.product_id.isnot(None))
+    )
+
+    if client_id is not None:
+        query = query.filter(ModificationAction.client_id == client_id)
+    if job_id is not None:
+        query = query.filter(ModificationAction.job_id == job_id)
+
+    modifications = query.all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Price Modifications"
+
+    headers = [
+        "action_type",
+        "old_price",
+        "new_price",
+        "item_type",
+        "manufacturer",
+        "manufacturer_part_number",
+        "vendor_part_number",
+        "sin",
+        "item_name",
+        "item_description",
+        "recycled_content_percent",
+        "uom",
+        "quantity_per_pack",
+        "quantity_unit_uom",
+        "commercial_price",
+        "mfc_name",
+        "mfc_price",
+        "govt_price_no_fee",
+        "govt_price_with_fee",
+        "country_of_origin",
+        "delivery_days",
+        "lead_time_code",
+        "fob_us",
+        "fob_ak",
+        "fob_hi",
+        "fob_pr",
+        "nsn",
+        "upc",
+        "unspsc",
+        "sale_price_with_fee",
+        "start_date",
+        "stop_date",
+        "default_photo",
+        "photo_2",
+        "photo_3",
+        "photo_4",
+        "product_url",
+        "warranty_period",
+        "warranty_unit_of_time",
+        "length",
+        "width",
+        "height",
+        "physical_uom",
+        "weight_lbs",
+        "product_info_code",
+        "url_508",
+        "hazmat",
+        "dealer_cost",
+        "mfc_markup_percentage",
+        "govt_markup_percentage",
+    ]
+
+    if client_id is None:
+        headers.insert(3, "client_name")
+
+    ws.append(headers)
+
+    for mod in modifications:
+        p = mod.product
+        if not p:
+            continue
+            
+        d = p.dimension
+
+        row = [
+            mod.action_type,
+            float(mod.old_price) if mod.old_price is not None else None,
+            float(mod.new_price) if mod.new_price is not None else None,
+            p.item_type,
+            p.manufacturer,
+            p.manufacturer_part_number,
+            p.vendor_part_number,
+            p.sin,
+            p.item_name,
+            p.item_description,
+            float(p.recycled_content_percent) if p.recycled_content_percent is not None else None,
+            p.uom,
+            p.quantity_per_pack,
+            p.quantity_unit_uom,
+            float(p.commercial_price) if p.commercial_price is not None else None,
+            p.mfc_name,
+            float(p.mfc_price) if p.mfc_price is not None else None,
+            float(p.govt_price_no_fee) if p.govt_price_no_fee is not None else None,
+            float(p.govt_price_with_fee) if p.govt_price_with_fee is not None else None,
+            p.country_of_origin,
+            p.delivery_days,
+            p.lead_time_code,
+            p.fob_us,
+            p.fob_ak,
+            p.fob_hi,
+            p.fob_pr,
+            p.nsn,
+            p.upc,
+            p.unspsc,
+            float(p.sale_price_with_fee) if p.sale_price_with_fee is not None else None,
+            p.start_date,
+            p.stop_date,
+            p.default_photo,
+            p.photo_2,
+            p.photo_3,
+            p.photo_4,
+            p.product_url,
+            p.warranty_period,
+            p.warranty_unit_of_time,
+            float(d.length) if d and d.length is not None else None,
+            float(d.width) if d and d.width is not None else None,
+            float(d.height) if d and d.height is not None else None,
+            d.physical_uom if d else None,
+            float(d.weight_lbs) if d and d.weight_lbs is not None else None,
+            p.product_info_code,
+            p.url_508,
+            p.hazmat,
+            float(p.dealer_cost) if p.dealer_cost is not None else None,
+            float(p.mfc_markup_percentage) if p.mfc_markup_percentage is not None else None,
+            float(p.govt_markup_percentage) if p.govt_markup_percentage is not None else None,
+        ]
+
+        if client_id is None:
+            row.insert(3, p.client.company_name if p.client else None)
+
+        ws.append(row)
+
+    return wb
+
+
 
 
 def export_products_excel(db: Session, client_id: Optional[int] = None):
