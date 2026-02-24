@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from app.models.base import Base
 from app.utils.db_init import seed_static_data
+from app.redis_client import redis_client
 
 db_engine = None
 SessionLocal = None
@@ -30,6 +31,18 @@ def create_app():
         title= "Winvale GSA Automation",
         version="1.0.1"
     )
+
+    @app.middleware("http")
+    async def invalidate_cache_on_mutate(request: Request, call_next):
+        response = await call_next(request)
+        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            if 200 <= response.status_code < 400:
+                try:
+                    # Clear Redis cache if a modifying request is made and successful
+                    redis_client.flushdb()
+                except Exception as e:
+                    print(f"Error flushing Redis cache: {e}")
+        return response
 
     DB_URL = get_db_config()
     tmp_engine = create_engine(DB_URL)
