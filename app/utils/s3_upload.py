@@ -35,6 +35,8 @@ def gsa_upload(file,filename,type):
             s3_key = f"master_uploads/{filename}"
         elif type == "cpl_upload":
             s3_key = f"cpl_pricelist_uploads/{filename}"
+        elif type == "logo_upload":
+            s3_key = f"company_logos/{filename}"
 
         s3_client.upload_fileobj(
             file.file,

@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session,joinedload
 from app.models.client_profiles import ClientProfile
@@ -9,6 +9,9 @@ from app.models.status import Status
 from app.models.users import User
 from app.schemas.client_profile import ClientProfileCreate, ClientProfileUpdate
 from app.utils.name_to_id import get_status_id_by_name
+import os
+from datetime import datetime, timezone
+from app.utils.s3_upload import gsa_upload, clean
  
 class ClientAlreadyExistsError(Exception):
     pass
@@ -41,6 +44,7 @@ def serialize_client(c: ClientProfile) -> dict:
         "status": c.status.status,
         "created_time": c.created_time,
         "updated_time": c.updated_time,
+        "company_logo_url": c.company_logo_url,
     }
 
  
@@ -309,3 +313,35 @@ def delete_client(db: Session, client_id:int):
 
     return serialize_client(client)
 
+
+def upload_company_logo(db: Session, client_id: int, file: UploadFile, user_email: str) -> dict:
+    client = db.query(ClientProfile).filter_by(client_id=client_id).first()
+    if not client:
+        raise ClientNotFoundError("Client not found")
+
+    user = db.query(User).filter_by(email=user_email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized"
+        )
+
+    _, ext = os.path.splitext(file.filename)
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
+
+    filename = (
+        f"{clean(client.company_name)}_"
+        f"logo_"
+        f"{date_str}"
+        f"{ext}"
+    )
+
+    result = gsa_upload(file, filename, "logo_upload")
+    
+    client.company_logo_url = result["url"]
+    client.updated_time = datetime.now(timezone.utc)
+    
+    db.commit()
+    db.refresh(client)
+    
+    return serialize_client(client)

@@ -43,7 +43,7 @@ class ClientProfile(Base):
         nullable=False
     )
     is_deleted = Column(Boolean, nullable=False, default=False)
-    # company_logo = Column(String())
+    company_logo_url = Column(String(350))
 
 
     created_time = Column(

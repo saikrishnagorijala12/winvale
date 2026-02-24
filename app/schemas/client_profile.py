@@ -26,6 +26,8 @@ class ClientProfileBase(ORMBase):
     contact_officer_city: Optional[str] = None
     contact_officer_state: Optional[str] = None
     contact_officer_zip: Optional[str] = None
+    
+    company_logo_url: Optional[str] = None
 
     @field_validator(
         "contact_officer_email",
@@ -70,6 +72,7 @@ class ClientProfileUpdate(ORMBase):
     contact_officer_zip: Optional[str] = None
     is_deleted: Optional[bool] = False
     status: Optional[str] = None
+    company_logo_url: Optional[str] = None
  
     @field_validator(
         "company_name",
@@ -86,6 +89,7 @@ class ClientProfileUpdate(ORMBase):
         "contact_officer_city",
         "contact_officer_state",
         "contact_officer_zip",
+        "company_logo_url",
         mode="before",
     )
     @classmethod

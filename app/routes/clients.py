@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
@@ -110,6 +110,34 @@ def update_client(
 
     _invalidate_client_cache(client_id)
     return client
+
+
+@router.post("/{client_id}/logo", response_model=ClientProfileRead)
+def upload_client_logo(
+    client_id: int,
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        client = cps.upload_company_logo(
+            db=db,
+            client_id=client_id,
+            file=file,
+            user_email=current_user["email"],
+        )
+        _invalidate_client_cache(client_id)
+        return client
+    except cps.ClientNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 @router.patch("/{client_id}/approve")
