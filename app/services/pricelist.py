@@ -241,46 +241,72 @@ def upload_cpl_service(
         desc_changed = safe_compare(old_desc, new_desc)
         name_changed = safe_compare(old_name, new_name)
 
-        if price_changed:
+        actions_created = False
 
-            if old_price is None or (
-                new_price is not None and new_price > old_price
-            ):
-                action = "PRICE_INCREASE"
+        if price_changed:
+            if old_price is None or (new_price is not None and new_price > old_price):
+                action_type = "PRICE_INCREASE"
                 summary["price_increase"] += 1
             else:
-                action = "PRICE_DECREASE"
+                action_type = "PRICE_DECREASE"
                 summary["price_decrease"] += 1
 
-        elif desc_changed:
-            action = "DESCRIPTION_CHANGE"
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=product.product_id,
+                    action_type=action_type,
+                    old_price=old_price,
+                    new_price=new_price,
+                    number_of_items_impacted=1,
+                )
+            )
+            actions_created = True
+
+
+        if desc_changed:
             summary["description_changed"] += 1
 
-        elif name_changed:
-            action = "NAME_CHANGE"
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=product.product_id,
+                    action_type="DESCRIPTION_CHANGE",
+                    old_description=old_desc,
+                    new_description=new_desc,
+                    number_of_items_impacted=1,
+                )
+            )
+            actions_created = True
+
+
+        if name_changed:
             summary["name_changed"] += 1
 
-        else:
-            action = "NO_CHANGE"
-            summary["no_change"] += 1
-
-        db.add(
-            ModificationAction(
-                user_id=user.user_id,
-                client_id=client_id,
-                job_id=job_id,
-                cpl_id=cpl.cpl_id,
-                product_id=product.product_id,
-                action_type=action,
-                old_price=old_price,
-                new_price=new_price,
-                old_description=old_desc,
-                new_description=new_desc,
-                old_name=old_name,
-                new_name=new_name,
-                number_of_items_impacted=1,
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=product.product_id,
+                    action_type="NAME_CHANGE",
+                    old_name=old_name,
+                    new_name=new_name,
+                    number_of_items_impacted=1,
+                )
             )
-        )
+            actions_created = True
+
+
+        if not actions_created:
+            summary["no_change"] += 1
 
     for key, product in product_map.items():
 

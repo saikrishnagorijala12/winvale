@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from datetime import datetime
 from fastapi import HTTPException
-from collections import Counter
+from collections import Counter, defaultdict
 from app.models import (
     Job,
     User,
@@ -55,46 +55,48 @@ def list_jobs(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
 ):
-    query = (
-        db.query(Job)
-        .join(Job.client)
-        .join(ClientProfile.contracts)
-        .join(Job.user)
-        .join(Job.status)
-    )
+
+    base_query = db.query(Job)
 
     if client_id:
-        query = query.filter(Job.client_id == client_id)
+        base_query = base_query.filter(Job.client_id == client_id)
 
     if status and status.lower() != "all":
-        query = query.filter(Status.status == status)
+        base_query = base_query.join(Job.status).filter(Status.status == status)
 
     if date_from:
-        query = query.filter(Job.created_time >= date_from)
+        base_query = base_query.filter(Job.created_time >= date_from)
 
     if date_to:
-        query = query.filter(Job.created_time <= date_to)
+        base_query = base_query.filter(Job.created_time <= date_to)
 
     if search:
         term = f"%{search}%"
-        query = query.filter(
-            or_(
-                ClientProfile.company_name.ilike(term),
-                User.name.ilike(term),
-                ClientContracts.contract_number.ilike(term),
+        base_query = (
+            base_query
+            .join(Job.client)
+            .join(ClientProfile.contracts)
+            .join(Job.user)
+            .filter(
+                or_(
+                    ClientProfile.company_name.ilike(term),
+                    User.name.ilike(term),
+                    ClientContracts.contract_number.ilike(term),
+                )
             )
         )
 
-    total = query.count()
+    count_query = base_query.with_entities(func.count(Job.job_id))
+    total = count_query.scalar()
+
     offset = (page - 1) * page_size
 
     jobs = (
-        query
+        base_query
         .options(
             joinedload(Job.client).joinedload(ClientProfile.contracts),
             joinedload(Job.user),
             joinedload(Job.status),
-            joinedload(Job.modification_actions),
         )
         .order_by(Job.created_time.desc())
         .offset(offset)
@@ -102,12 +104,39 @@ def list_jobs(
         .all()
     )
 
-    response = []
-    for j in jobs:
-        action_counter = Counter()
-        for a in j.modification_actions:
-            action_counter[a.action_type] += 1
+    if not jobs:
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+            "items": [],
+        }
 
+    job_ids = [j.job_id for j in jobs]
+
+    action_counts = (
+        db.query(
+            ModificationAction.job_id,
+            ModificationAction.action_type,
+            func.count().label("count")
+        )
+        .filter(ModificationAction.job_id.in_(job_ids))
+        .group_by(
+            ModificationAction.job_id,
+            ModificationAction.action_type
+        )
+        .all()
+    )
+
+    action_map = defaultdict(dict)
+
+    for job_id, action_type, count in action_counts:
+        action_map[job_id][action_type] = count
+
+    response = []
+
+    for j in jobs:
         response.append({
             "job_id": j.job_id,
             "client_id": j.client_id,
@@ -120,7 +149,7 @@ def list_jobs(
             "user_id": j.user_id,
             "user": j.user.name if j.user else None,
             "status": j.status.status if j.status else None,
-            "action_summary": dict(action_counter),
+            "action_summary": action_map.get(j.job_id, {}),
             "created_time": j.created_time,
             "updated_time": j.updated_time,
         })
@@ -196,7 +225,6 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
             "created_time": a.created_time,
         })
  
-    # Calculate summary counts for all action types
     summary_counts = db.query(
         ModificationAction.action_type,
         func.count(ModificationAction.action_id)
@@ -301,6 +329,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
 
 
 def approve_job(db: Session, job_id: int, user_email: str):
+
     job = db.query(Job).filter_by(job_id=job_id).first()
     if not job:
         raise HTTPException(404, "Job not found")
@@ -322,60 +351,71 @@ def approve_job(db: Session, job_id: int, user_email: str):
     client_id = job.client_id
     now = datetime.utcnow()
 
+    new_product_actions = []
+    existing_product_actions = defaultdict(list)
+
     for action in actions:
-
         if action.action_type == "NEW_PRODUCT":
-            if not action.cpl_item:
-                raise HTTPException(500, "CPL data missing for new product")
+            new_product_actions.append(action)
+        elif action.product_id:
+            existing_product_actions[action.product_id].append(action)
 
-            cpl = action.cpl_item
+    for action in new_product_actions:
 
-            existing_product = (
-                db.query(ProductMaster)
-                .filter(
-                    ProductMaster.client_id == client_id,
-                    ProductMaster.manufacturer == cpl.manufacturer_name,
-                    ProductMaster.manufacturer_part_number == cpl.manufacturer_part_number,
-                )
-                .first()
+        if not action.cpl_item:
+            raise HTTPException(500, "CPL data missing for new product")
+
+        cpl = action.cpl_item
+
+        existing_product = (
+            db.query(ProductMaster)
+            .filter(
+                ProductMaster.client_id == client_id,
+                ProductMaster.manufacturer == cpl.manufacturer_name,
+                ProductMaster.manufacturer_part_number == cpl.manufacturer_part_number,
             )
+            .first()
+        )
 
-            if existing_product:
-                existing_product.is_deleted = False
-                existing_product.commercial_price = action.new_price
-                existing_product.item_description = cpl.item_description
-                existing_product.item_name = cpl.item_name
-                db.add(create_product_history_snapshot(existing_product, client_id, is_current=True))
-                continue
+        if existing_product:
+            existing_product.is_deleted = False
+            existing_product.commercial_price = action.new_price
+            existing_product.item_description = cpl.item_description
+            existing_product.item_name = cpl.item_name
 
-            row_data = {
-                "manufacturer": cpl.manufacturer_name,
-                "manufacturer_part_number": cpl.manufacturer_part_number,
-                "item_name": cpl.item_name,
-            }
-
-            new_product = ProductMaster(
-                client_id=client_id,
-                item_type="B",
-                manufacturer=cpl.manufacturer_name,
-                manufacturer_part_number=cpl.manufacturer_part_number,
-                item_name=cpl.item_name,
-                item_description=cpl.item_description,
-                commercial_price=action.new_price,
-                country_of_origin=cpl.origin_country,
-                currency="USD",
-                row_signature=identity_signature(row_data),
-                is_deleted=False,
-            )
-
-            db.add(new_product)
-            db.flush()
-            db.add(create_product_history_snapshot(new_product, client_id, is_current=True))
+            db.add(create_product_history_snapshot(existing_product, client_id, is_current=True))
             continue
 
-        product = db.query(ProductMaster).filter_by(product_id=action.product_id).first()
+        row_data = {
+            "manufacturer": cpl.manufacturer_name,
+            "manufacturer_part_number": cpl.manufacturer_part_number,
+            "item_name": cpl.item_name,
+        }
+
+        new_product = ProductMaster(
+            client_id=client_id,
+            item_type="B",
+            manufacturer=cpl.manufacturer_name,
+            manufacturer_part_number=cpl.manufacturer_part_number,
+            item_name=cpl.item_name,
+            item_description=cpl.item_description,
+            commercial_price=action.new_price,
+            country_of_origin=cpl.origin_country,
+            currency="USD",
+            row_signature=identity_signature(row_data),
+            is_deleted=False,
+        )
+
+        db.add(new_product)
+        db.flush()
+
+        db.add(create_product_history_snapshot(new_product, client_id, is_current=True))
+
+    for product_id, action_list in existing_product_actions.items():
+
+        product = db.query(ProductMaster).filter_by(product_id=product_id).first()
         if not product:
-            raise HTTPException(500, f"Product {action.product_id} not found")
+            raise HTTPException(500, f"Product {product_id} not found")
 
         current_history = (
             db.query(ProductHistory)
@@ -387,19 +427,31 @@ def approve_job(db: Session, job_id: int, user_email: str):
             current_history.is_current = False
             current_history.effective_end_date = now
 
-        if action.action_type == "REMOVED_PRODUCT":
-            product.is_deleted = True
-            if current_history:
-                current_history.is_current = False
-                current_history.effective_end_date = now
-            continue
+        remove_product = False
 
-        product.commercial_price = action.new_price
-        product.item_description = action.new_description
-        product.item_name = action.new_name or product.item_name
+        for action in action_list:
+
+            if action.action_type == "REMOVED_PRODUCT":
+                remove_product = True
+
+            elif action.action_type in ("PRICE_INCREASE", "PRICE_DECREASE"):
+                product.commercial_price = action.new_price
+
+            elif action.action_type == "DESCRIPTION_CHANGE":
+                product.item_description = action.new_description
+
+            elif action.action_type == "NAME_CHANGE":
+                product.item_name = action.new_name
+
+        if remove_product:
+            product.is_deleted = True
+        else:
+            product.is_deleted = False
+
         db.add(create_product_history_snapshot(product, client_id, is_current=True))
 
     job.status_id = approved_id
+
     db.commit()
 
     return {
