@@ -9,30 +9,38 @@ from app.models.product_master import ProductMaster
 from app.models.client_profiles import ClientProfile
 from app.models.cpl_list import CPLList
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
 from app.models.modification_action import ModificationAction
 
 
 def export_price_modifications_excel(
     db,
     client_id: Optional[int] = None,
-    job_id: Optional[int] = None
+    job_id: Optional[int] = None,
+    selected_types: Optional[List[str]] = None,
 ):
+    ordered_tabs = [
+    ("NEW_PRODUCT", "Additions"),
+    ("REMOVED_PRODUCT", "Deletions"),
+    ("PRICE_INCREASE", "Price Increase"),
+    ("PRICE_DECREASE", "Price Decrease"),
+    ("DESCRIPTION_CHANGE", "Description Changes"),
+    ]
+
+    all_types = [t[0] for t in ordered_tabs]
+
+    selected_types = [t for t in (selected_types or all_types) if t in all_types]
+
+    if not selected_types:
+        selected_types = all_types
+
     query = (
         db.query(ModificationAction)
         .options(
             joinedload(ModificationAction.product).joinedload(ProductMaster.dimension),
             joinedload(ModificationAction.cpl_item)
         )
-        .filter(
-            ModificationAction.action_type.in_([
-                "NEW_PRODUCT",
-                "REMOVED_PRODUCT",
-                "PRICE_INCREASE",
-                "PRICE_DECREASE",
-                "DESCRIPTION_CHANGE"
-            ])
-        )
+        .filter(ModificationAction.action_type.in_(selected_types))
     )
 
     if client_id is not None:
@@ -43,14 +51,6 @@ def export_price_modifications_excel(
 
     wb = Workbook()
     wb.remove(wb.active)
-
-    ordered_tabs = [
-        ("NEW_PRODUCT", "Additions"),
-        ("REMOVED_PRODUCT", "Deletions"),
-        ("PRICE_INCREASE", "Price Increase"),
-        ("PRICE_DECREASE", "Price Decrease"),
-        ("DESCRIPTION_CHANGE", "Description Changes"),
-    ]
 
     base_headers = [
         "item_type", "manufacturer", "manufacturer_part_number",
@@ -148,8 +148,11 @@ def export_price_modifications_excel(
 
         return ws
 
+    selected_types_set = set(selected_types)
+
     for action_type, title in ordered_tabs:
-        sheets[action_type] = create_sheet(title)
+        if action_type in selected_types_set:
+            sheets[action_type] = create_sheet(title)
 
     for mod in query.yield_per(500):
 
@@ -174,11 +177,11 @@ def export_price_modifications_excel(
             p.uom if p else None,
             p.quantity_per_pack if p else None,
             p.quantity_unit_uom if p else None,
-            float(price) if price else None,
+            float(price) if price is not None else None,
             p.mfc_name if p else None,
-            float(p.mfc_price) if p and p.mfc_price else None,
-            float(p.govt_price_no_fee) if p and p.govt_price_no_fee else None,
-            float(p.govt_price_with_fee) if p and p.govt_price_with_fee else None,
+            float(p.mfc_price) if p and p.mfc_price is not None else None,
+            float(p.govt_price_no_fee) if p and p.govt_price_no_fee is not None else None,
+            float(p.govt_price_with_fee) if p and p.govt_price_with_fee is not None else None,
             p.country_of_origin if p else (cpl.origin_country if cpl else None),
             p.delivery_days if p else None,
             p.lead_time_code if p else None,
@@ -189,7 +192,7 @@ def export_price_modifications_excel(
             p.nsn if p else None,
             p.upc if p else None,
             p.unspsc if p else None,
-            float(p.sale_price_with_fee) if p and p.sale_price_with_fee else None,
+            float(p.sale_price_with_fee) if p and p.sale_price_with_fee is not None else None,
             p.start_date if p else None,
             p.stop_date if p else None,
             p.default_photo if p else None,
@@ -207,9 +210,9 @@ def export_price_modifications_excel(
             p.product_info_code if p else None,
             p.url_508 if p else None,
             p.hazmat if p else None,
-            float(p.dealer_cost) if p and p.dealer_cost else None,
-            float(p.mfc_markup_percentage) if p and p.mfc_markup_percentage else None,
-            float(p.govt_markup_percentage) if p and p.govt_markup_percentage else None,
+            float(p.dealer_cost) if p and p.dealer_cost is not None else None,
+            float(p.mfc_markup_percentage) if p and p.mfc_markup_percentage is not None else None,
+            float(p.govt_markup_percentage) if p and p.govt_markup_percentage is not None else None,
         ]
 
         ws.append(row)
@@ -339,7 +342,7 @@ def export_products_excel(db, client_id: Optional[int] = None):
             p.sin,
             p.item_name,
             p.item_description,
-            float(p.recycled_content_percent) if p.recycled_content_percent else None,
+            float(p.recycled_content_percent) if p.recycled_content_percent is not None else None,
             p.uom,
             p.quantity_per_pack,
             p.quantity_unit_uom,
@@ -368,11 +371,11 @@ def export_products_excel(db, client_id: Optional[int] = None):
             p.product_url,
             p.warranty_period,
             p.warranty_unit_of_time,
-            float(d.length) if d and d.length else None,
-            float(d.width) if d and d.width else None,
-            float(d.height) if d and d.height else None,
+            float(d.length) if d and d.length is not None else None,
+            float(d.width) if d and d.width is not None else None,
+            float(d.height) if d and d.height is not None else None,
             d.physical_uom if d else None,
-            float(d.weight_lbs) if d and d.weight_lbs else None,
+            float(d.weight_lbs) if d and d.weight_lbs is not None else None,
             p.product_info_code,
             p.url_508,
             p.hazmat,
