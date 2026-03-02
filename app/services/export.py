@@ -112,11 +112,15 @@ def export_price_modifications_excel(
     header_border = Border(top=thin, bottom=thin, left=thin, right=thin)
 
     sheets = {}
-    width_tracker = {}
+
+    def set_fixed_widths(ws):
+        fixed_width = 18
+        for col in range(1, len(base_headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = fixed_width
 
     def create_sheet(title):
         ws = wb.create_sheet(title)
-        width_tracker[title] = [len(h) for h in base_headers]
+        set_fixed_widths(ws)
 
         # ---- Row 1 (Section Header) ----
         ws.append(group_row)
@@ -216,17 +220,6 @@ def export_price_modifications_excel(
         ]
 
         ws.append(row)
-
-        # Track column widths
-        widths = width_tracker[ws.title]
-        for i, value in enumerate(row):
-            if value is not None:
-                widths[i] = max(widths[i], len(str(value)))
-
-    for title, widths in width_tracker.items():
-        ws = wb[title]
-        for i, width in enumerate(widths, start=1):
-            ws.column_dimensions[get_column_letter(i)].width = min(width + 2, 50)
 
     return wb
 
