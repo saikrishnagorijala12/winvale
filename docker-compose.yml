@@ -1,29 +1,27 @@
 services:
-  # db:
-  #   image: postgres:17
-  #   container_name: winvale-postgres
-  #   env_file:
-  #     - .env.docker
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   networks:
-  #     - winvale-net
-  #   restart: always
+  db:
+    image: postgres:17
+    container_name: winvale-postgres
+    env_file:
+      - .env.docker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - winvale-net
+    restart: always
 
   redis:
     image: redis:7
     container_name: winvale-redis
     env_file:
-      - .env
-      # - .env.docker
+      - .env.docker
     ports:
       - "6379:6379"
     networks:
       - winvale-net
     restart: always
-    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
 
   backend:
     build: .
@@ -34,17 +32,14 @@ services:
       - .env
       - .env.docker
     depends_on:
-      # - db
+      - db
       - redis
     networks:
       - winvale-net
     restart: always
-    extra_hosts:
-    - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:
-
 
 networks:
   winvale-net:
