@@ -17,6 +17,7 @@ def export_price_modifications(
     client_id: Optional[int] = Query(None),
     job_id: Optional[int] = Query(None),
     types: Optional[List[str]] = Query(None),
+    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     wb = export_price_modifications_excel(
@@ -43,7 +44,7 @@ def export_price_modifications(
 @router.get("/")
 def export_products(
     client_id: Optional[int] = Query(None),
-    # current_user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     wb = export_products_excel(db, client_id)
