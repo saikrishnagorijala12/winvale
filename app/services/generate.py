@@ -114,7 +114,9 @@ def get_job_full_details(db: Session, job_id: int, user_email: str):
             "company_name": job.client.company_name if job.client else None,
             "logo": job.client.company_logo_url if job.client else None
         },
- 
+        "negotiator":{
+            "name":job.client.contact_officer_name
+        }, 
         "client_contract": None if not contract else {
             "contract_officer_name": contract.contract_officer_name,
             "contract_number": contract.contract_number,

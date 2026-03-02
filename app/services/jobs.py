@@ -146,6 +146,7 @@ def list_jobs(
                 else None
             ),
             "client": j.client.company_name if j.client else None,
+            "client_logo_url": j.client.company_logo_url if j.client else None,
             "user_id": j.user_id,
             "user": j.user.name if j.user else None,
             "status": j.status.status if j.status else None,
@@ -237,6 +238,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
         "client_id": job.client_id,
         "contract_number": job.client.contracts.contract_number if job.client and job.client.contracts else None,
         "client": job.client.company_name if job.client else None,
+        "client_logo_url": job.client.company_logo_url if job.client else None,
         "user_id": job.user_id,
         "user": job.user.name if job.user else None,
         "status": job.status.status if job.status else None,
