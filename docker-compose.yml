@@ -16,6 +16,8 @@ services:
     image: redis:7
     container_name: winvale-redis
     env_file:
+      # - .env
+      - .env.docker
       - .env.docker
     ports:
       - "6379:6379"
@@ -33,10 +35,13 @@ services:
       - .env.docker
     depends_on:
       - db
+      - db
       - redis
     networks:
       - winvale-net
     restart: always
+    # extra_hosts:
+    # - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:
