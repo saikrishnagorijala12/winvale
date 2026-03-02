@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 from sqlalchemy import select, update
@@ -15,8 +17,6 @@ from app.utils.upload_helper import (
     identity_signature,
     history_signature,
 )
-from app.redis_client import redis_client
-from app.utils.cache import invalidate_pattern
 from app.utils import s3_upload as s3
 
 BATCH_SIZE = 500
@@ -29,9 +29,9 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
 
     if not db.query(ClientContracts.client_id).filter_by(client_id=client_id).first():
         raise HTTPException(status_code=404, detail="No Contract Found")
-
+    
     file.file.seek(0)
-    wb = load_workbook(file.file, read_only=True, data_only=True)
+    wb = load_workbook(BytesIO(file.file.read()), read_only=True, data_only=True)
 
     SHEET_NAME = "PRODUCTS"
     if SHEET_NAME not in wb.sheetnames:
@@ -300,9 +300,6 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         deleted = len(to_delete_ids)
 
     db.commit()
-
-    invalidate_pattern(redis_client, "products:all*")
-    invalidate_pattern(redis_client, f"products:client:{client_id}*")
 
     if inserted or updated or reactivated:
         file.file.seek(0)
