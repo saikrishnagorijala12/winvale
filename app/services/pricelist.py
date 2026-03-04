@@ -14,16 +14,11 @@ from app.services.jobs import create_job
 from app.utils import s3_upload as s3
 
 HEADER_ALIASES = {
-
     "manufacturer": [
         "manufacturer",
         "manufacturer_name",
         "mfr",
         "mfr_name",
-        "brand",
-        "brand_name",
-        "maker",
-        "supplier",
     ],
 
     "part_number": [
@@ -32,23 +27,13 @@ HEADER_ALIASES = {
         "manufacturer_part_number",
         "mpn",
         "pn",
-        "sku",
-        "item_number",
-        "item_no",
-        "model_number",
-        "model_no",
-        "product_code",
     ],
 
     "product_name": [
         "product_name",
         "item_name",
         "name",
-        "product",
-        "product_title",
-        "item_title",
-        "model_name",
-        "model",
+        "product_name",
     ],
 
     "product_description": [
@@ -57,12 +42,7 @@ HEADER_ALIASES = {
         "item_description",
         "short_description",
         "long_description",
-        "desc",
-        "item_desc",
-        "product_desc",
-        "details",
-        "specs",
-        "specifications",
+        "product_description",
     ],
 
     "commercial_list_price_(gv)": [
@@ -71,15 +51,10 @@ HEADER_ALIASES = {
         "commercial_price",
         "list_price",
         "price",
-        "unit_price",
         "msrp",
         "suggested_msrp",
         "market_price",
         "market_rate",
-        "selling_price",
-        "catalog_price",
-        "dealer_price",
-        "customer_price",
     ],
 
     "country_of_origin_(coo)": [
@@ -87,10 +62,6 @@ HEADER_ALIASES = {
         "country_of_origin",
         "coo",
         "origin_country",
-        "origin",
-        "made_in",
-        "manufactured_in",
-        "country_origin",
     ],
 }
 
