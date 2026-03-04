@@ -46,7 +46,7 @@ def gsa_upload(file,filename,type):
         )
 
         s3_url = f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
-        print(s3_url)
+        # print(s3_url)
 
         return {
         "s3_key": s3_key,

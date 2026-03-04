@@ -13,6 +13,131 @@ from app.models import (
 from app.services.jobs import create_job
 from app.utils import s3_upload as s3
 
+HEADER_ALIASES = {
+
+    "manufacturer": [
+        "manufacturer",
+        "manufacturer_name",
+        "mfr",
+        "mfr_name",
+        "brand",
+        "brand_name",
+        "maker",
+        "supplier",
+    ],
+
+    "part_number": [
+        "part_number",
+        "part_no",
+        "manufacturer_part_number",
+        "mpn",
+        "pn",
+        "sku",
+        "item_number",
+        "item_no",
+        "model_number",
+        "model_no",
+        "product_code",
+    ],
+
+    "product_name": [
+        "product_name",
+        "item_name",
+        "name",
+        "product",
+        "product_title",
+        "item_title",
+        "model_name",
+        "model",
+    ],
+
+    "product_description": [
+        "product_description",
+        "description",
+        "item_description",
+        "short_description",
+        "long_description",
+        "desc",
+        "item_desc",
+        "product_desc",
+        "details",
+        "specs",
+        "specifications",
+    ],
+
+    "commercial_list_price_(gv)": [
+        "commercial_list_price_(gv)",
+        "commercial_list_price",
+        "commercial_price",
+        "list_price",
+        "price",
+        "unit_price",
+        "msrp",
+        "suggested_msrp",
+        "market_price",
+        "market_rate",
+        "selling_price",
+        "catalog_price",
+        "dealer_price",
+        "customer_price",
+    ],
+
+    "country_of_origin_(coo)": [
+        "country_of_origin_(coo)",
+        "country_of_origin",
+        "coo",
+        "origin_country",
+        "origin",
+        "made_in",
+        "manufactured_in",
+        "country_origin",
+    ],
+}
+
+def normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
+
+    normalized_cols = (
+        df.columns.astype(str)
+        .str.strip()
+        .str.lower()
+        .str.replace(r"[^\w]", "_", regex=True)
+        .str.replace("_+", "_", regex=True)
+    )
+
+    rename_map = {}
+
+    for col in normalized_cols:
+        for canonical, aliases in HEADER_ALIASES.items():
+            if col in aliases:
+                rename_map[col] = canonical
+                break
+
+    df.columns = normalized_cols
+    df = df.rename(columns=rename_map)
+
+    return df
+
+def build_alias_set():
+    aliases = set()
+
+    for vals in HEADER_ALIASES.values():
+        for v in vals:
+            normalized = (
+                v.strip()
+                .lower()
+                .replace("-", "_")
+            )
+            normalized = (
+                pd.Series([normalized])
+                .str.replace(r"[^\w]", "_", regex=True)
+                .str.replace("_+", "_", regex=True)
+                .iloc[0]
+            )
+
+            aliases.add(normalized)
+
+    return aliases
+
 
 def normalize_str(v):
     if v is None or pd.isna(v):
@@ -64,23 +189,24 @@ def clean(value):
 def safe_compare(a, b):
     return (a or "").strip() != (b or "").strip()
 
+ALIAS_SET = build_alias_set()
 
-def find_header_row(df: pd.DataFrame, required_cols: set[str]) -> int:
-    normalized_required = {
-        c.lower().strip().replace(" ", "_")
-        for c in required_cols
-    }
+def find_header_row(df: pd.DataFrame) -> int:
 
     for i in range(min(30, len(df))):
+
         row = (
             df.iloc[i]
             .astype(str)
             .str.strip()
             .str.lower()
-            .str.replace(" ", "_")
+            .str.replace(r"[^\w]", "_", regex=True)
+            .str.replace("_+", "_", regex=True)
         )
 
-        if normalized_required.issubset(set(row.values)):
+        matches = set(row.values) & ALIAS_SET
+
+        if len(matches) >= 3:
             return i
 
     raise HTTPException(
@@ -106,31 +232,45 @@ def upload_cpl_service(
     raw_df = pd.read_excel(BytesIO(file.file.read()), header=None)
 
     required_cols = {
-        "manufacturer",
-        "part_number",
-        "product_name",
-        "product_description",
-        "commercial_list_price_(gv)",
-        "country_of_origin_(coo)",
+    "manufacturer",
+    "part_number",
+    "product_description",
+    "commercial_list_price_(gv)",
     }
 
-    header_row = find_header_row(raw_df, required_cols)
+    header_row = find_header_row(raw_df)
 
     df = raw_df.iloc[header_row + 1:].copy()
     df.columns = raw_df.iloc[header_row]
     df.reset_index(drop=True, inplace=True)
 
-    df.columns = (
-        df.columns.astype(str)
-        .str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-    )
+    df = normalize_headers(df)
 
-    if not required_cols.issubset(df.columns):
-        raise HTTPException(status_code=400, detail="Invalid CPL file format")
+    missing = required_cols - set(df.columns)
+
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required columns: {', '.join(missing)}"
+        )
 
     cpl_map = {}
+
+    products = (
+            db.query(ProductMaster)
+            .filter_by(client_id=client_id, is_deleted=False)
+            .all()
+        )
+
+    product_map = {}
+
+    for p in products:
+        key = product_identity(
+            p.manufacturer,
+            p.manufacturer_part_number,
+        )
+        if key:
+            product_map[key] = p
 
     for _, row in df.iterrows():
 
@@ -141,11 +281,17 @@ def upload_cpl_service(
 
         if not key:
             continue
-
-        price = parse_price(row["commercial_list_price_(gv)"])
-        desc = clean(row["product_description"])
-        name = clean(row["product_name"])
+                
+        product = product_map.get(key)
+        price = parse_price(row.get("commercial_list_price_(gv)"))
+        desc = clean(row.get("product_description"))
         coo = normalize_upper(row.get("country_of_origin_(coo)"))
+
+        name = (
+            clean(row.get("product_name"))
+            or (product.item_name if product else None)
+            or "N/A"
+        )
 
         cpl = CPLList(
             client_id=client_id,
@@ -168,22 +314,6 @@ def upload_cpl_service(
         }
 
     db.flush()
-
-    products = (
-        db.query(ProductMaster)
-        .filter_by(client_id=client_id, is_deleted=False)
-        .all()
-    )
-
-    product_map = {}
-
-    for p in products:
-        key = product_identity(
-            p.manufacturer,
-            p.manufacturer_part_number,
-        )
-        if key:
-            product_map[key] = p
 
     summary = {
         "new_products": 0,
