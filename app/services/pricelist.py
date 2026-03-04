@@ -1,5 +1,4 @@
 from io import BytesIO
-from decimal import Decimal, InvalidOperation
 import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -12,178 +11,15 @@ from app.models import (
 )
 from app.services.jobs import create_job
 from app.utils import s3_upload as s3
-
-HEADER_ALIASES = {
-    "manufacturer": [
-        "manufacturer",
-        "manufacturer_name",
-        "mfr",
-        "mfr_name",
-    ],
-
-    "part_number": [
-        "part_number",
-        "part_no",
-        "manufacturer_part_number",
-        "mpn",
-        "pn",
-    ],
-
-    "product_name": [
-        "product_name",
-        "item_name",
-        "name",
-        "product_name",
-    ],
-
-    "product_description": [
-        "product_description",
-        "description",
-        "item_description",
-        "short_description",
-        "long_description",
-        "product_description",
-    ],
-
-    "commercial_list_price_(gv)": [
-        "commercial_list_price_(gv)",
-        "commercial_list_price",
-        "commercial_price",
-        "list_price",
-        "price",
-        "msrp",
-        "suggested_msrp",
-        "market_price",
-        "market_rate",
-    ],
-
-    "country_of_origin_(coo)": [
-        "country_of_origin_(coo)",
-        "country_of_origin",
-        "coo",
-        "origin_country",
-    ],
-}
-
-def normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
-
-    normalized_cols = (
-        df.columns.astype(str)
-        .str.strip()
-        .str.lower()
-        .str.replace(r"[^\w]", "_", regex=True)
-        .str.replace("_+", "_", regex=True)
-    )
-
-    rename_map = {}
-
-    for col in normalized_cols:
-        for canonical, aliases in HEADER_ALIASES.items():
-            if col in aliases:
-                rename_map[col] = canonical
-                break
-
-    df.columns = normalized_cols
-    df = df.rename(columns=rename_map)
-
-    return df
-
-def build_alias_set():
-    aliases = set()
-
-    for vals in HEADER_ALIASES.values():
-        for v in vals:
-            normalized = (
-                v.strip()
-                .lower()
-                .replace("-", "_")
-            )
-            normalized = (
-                pd.Series([normalized])
-                .str.replace(r"[^\w]", "_", regex=True)
-                .str.replace("_+", "_", regex=True)
-                .iloc[0]
-            )
-
-            aliases.add(normalized)
-
-    return aliases
-
-
-def normalize_str(v):
-    if v is None or pd.isna(v):
-        return None
-    return str(v).strip()
-
-
-def normalize_upper(v):
-    if v is None or pd.isna(v):
-        return None
-    return str(v).strip().upper()
-
-
-def product_identity(manufacturer, mpn):
-    m = normalize_upper(manufacturer)
-    p = normalize_upper(mpn)
-    if not m or not p:
-        return None
-    return (m, p)
-
-
-def parse_price(value):
-    if value is None or pd.isna(value):
-        return None
-
-    s = str(value).strip()
-    if not s:
-        return None
-
-    s = s.replace("$", "").replace(",", "")
-
-    try:
-        d = Decimal(s)
-    except (InvalidOperation, ValueError):
-        return None
-
-    if not d.is_finite():
-        return None
-
-    return d.quantize(Decimal("0.01"))
-
-
-def clean(value):
-    if pd.isna(value):
-        return None
-    return str(value).strip()
-
-
-def safe_compare(a, b):
-    return (a or "").strip() != (b or "").strip()
-
-ALIAS_SET = build_alias_set()
-
-def find_header_row(df: pd.DataFrame) -> int:
-
-    for i in range(min(30, len(df))):
-
-        row = (
-            df.iloc[i]
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .str.replace(r"[^\w]", "_", regex=True)
-            .str.replace("_+", "_", regex=True)
-        )
-
-        matches = set(row.values) & ALIAS_SET
-
-        if len(matches) >= 3:
-            return i
-
-    raise HTTPException(
-        status_code=400,
-        detail="Could not detect header row in CPL file",
-    )
+from app.utils.pricelist import (
+    normalize_headers,
+    find_header_row,
+    product_identity,
+    parse_price,
+    clean,
+    normalize_upper,
+    safe_compare,
+)
 
 
 def upload_cpl_service(
@@ -203,7 +39,6 @@ def upload_cpl_service(
     raw_df = pd.read_excel(BytesIO(file.file.read()), header=None)
 
     required_cols = {
-    "manufacturer",
     "part_number",
     "product_description",
     "commercial_list_price_(gv)",
@@ -243,11 +78,11 @@ def upload_cpl_service(
         if key:
             product_map[key] = p
 
-    for _, row in df.iterrows():
+    for row in df.to_dict("records"):
 
         key = product_identity(
-            row["manufacturer"],
-            row["part_number"],
+            row.get("manufacturer"),
+            row.get("part_number"),
         )
 
         if not key:
@@ -257,17 +92,20 @@ def upload_cpl_service(
         price = parse_price(row.get("commercial_list_price_(gv)"))
         desc = clean(row.get("product_description"))
         coo = normalize_upper(row.get("country_of_origin_(coo)"))
+        part_number = clean(row.get("part_number"))
+        if not part_number:
+            continue
 
-        name = (
-            clean(row.get("product_name"))
-            or (product.item_name if product else None)
-            or "N/A"
-        )
+        name = clean(row.get("product_name"))
+        if not name and product:
+            name = product.item_name
+
+        mfr_name=normalize_upper(row.get("manufacturer"))
 
         cpl = CPLList(
             client_id=client_id,
-            manufacturer_name=normalize_upper(row["manufacturer"]),
-            manufacturer_part_number=str(row["part_number"]).strip(),
+            manufacturer_name=mfr_name,
+            manufacturer_part_number=part_number,
             item_name=name,
             item_description=desc,
             commercial_list_price=price,
