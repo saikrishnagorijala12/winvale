@@ -17,10 +17,10 @@ class CPLList(Base):
         nullable=False
     )
 
-    manufacturer_name = Column(Text, nullable=False)
+    manufacturer_name = Column(Text)
 
     manufacturer_part_number = Column(Text, nullable=False)
-    item_name = Column(Text, nullable=False)
+    item_name = Column(Text)
     item_description = Column(Text)
 
     commercial_list_price = Column(Numeric(10, 2))
