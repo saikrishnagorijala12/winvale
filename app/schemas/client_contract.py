@@ -49,7 +49,7 @@ class ClientContractUpdate(ORMBase):
 
 class ClientContractRead(ORMBase):
     client_id: int
-
+    client: Optional[str] = None
     contract_number: str
     contract_officer_name: Optional[str] = None
     contract_officer_address: Optional[str] = None

@@ -118,7 +118,7 @@ def normalize_upper(v):
 def product_identity(manufacturer, mpn):
     m = normalize_upper(manufacturer)
     p = normalize_upper(mpn)
-    if not m or not p:
+    if not p:
         return None
     return (m, p)
 

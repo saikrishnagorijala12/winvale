@@ -1,6 +1,6 @@
 from datetime import datetime
 from .base import ORMBase
-from typing import Optional
+from typing import Optional, List, Union
 from pydantic import EmailStr
 
 
@@ -18,15 +18,22 @@ class UserRead(ORMBase):
     name: str
     email: EmailStr
     phone_no: Optional[str] = None
-    is_active: Optional[bool] = False
-    is_deleted: Optional[bool] = False 
+    is_active: bool
+    is_deleted: bool 
+    role: str
+    created_time: Optional[datetime] = None
 
+class UserStatusRead(ORMBase):
+    registered: bool
+    is_active: bool
+    Role: Optional[str] = None
+
+class UserAuthRead(UserRead):
+    message: Optional[Union[str, tuple]] = None
+
+class UserListRead(ORMBase):
+    users: List[UserRead]
 
 class UserUpdate(ORMBase):
     name: Optional[str] = None
     phone_no: Optional[str] = None
-    # email: Optional[EmailStr] = None
-    # is_active: Optional[bool] = False
-    # is_deleted: Optional[bool] = False
-    # cognito_sub : Optional[str]
-    # role_name: Optional[str] = None

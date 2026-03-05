@@ -2,13 +2,13 @@ from io import BytesIO
 import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
 from app.models import (
     User,
     ProductMaster,
     CPLList,
     ModificationAction,
 )
+from app.schemas.pricelist import CPLUploadResponse
 from app.services.jobs import create_job
 from app.utils import s3_upload as s3
 from app.utils.pricelist import (
@@ -27,10 +27,10 @@ def upload_cpl_service(
     client_id: int,
     file,
     user_email: str,
-):
+) -> CPLUploadResponse:
 
     job = create_job(db, client_id, user_email)
-    job_id = job["job_id"]
+    job_id = job.job_id
 
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
@@ -69,6 +69,7 @@ def upload_cpl_service(
         )
 
     product_map = {}
+    part_number_map = {}
 
     for p in products:
         key = product_identity(
@@ -77,13 +78,28 @@ def upload_cpl_service(
         )
         if key:
             product_map[key] = p
+        
+        # Part number map for fallback
+        pn_key = normalize_upper(p.manufacturer_part_number)
+        if pn_key:
+            part_number_map[pn_key] = p
 
     for row in df.to_dict("records"):
+        mfr_name = normalize_upper(row.get("manufacturer"))
+        part_number = clean(row.get("part_number"))
+        
+        if not part_number:
+            continue
+            
+        pn_key = normalize_upper(part_number)
+        
+        # Fallback for missing manufacturer
+        if not mfr_name:
+            matching_product = part_number_map.get(pn_key)
+            if matching_product:
+                mfr_name = normalize_upper(matching_product.manufacturer)
 
-        key = product_identity(
-            row.get("manufacturer"),
-            row.get("part_number"),
-        )
+        key = product_identity(mfr_name, part_number)
 
         if not key:
             continue
@@ -92,15 +108,10 @@ def upload_cpl_service(
         price = parse_price(row.get("commercial_list_price_(gv)"))
         desc = clean(row.get("product_description"))
         coo = normalize_upper(row.get("country_of_origin_(coo)"))
-        part_number = clean(row.get("part_number"))
-        if not part_number:
-            continue
 
         name = clean(row.get("product_name"))
         if not name and product:
             name = product.item_name
-
-        mfr_name=normalize_upper(row.get("manufacturer"))
 
         cpl = CPLList(
             client_id=client_id,
@@ -275,10 +286,10 @@ def upload_cpl_service(
 
     s3.save_uploaded_file(db, client_id, file, user_email, "cpl_upload")
 
-    return {
+    return CPLUploadResponse.model_validate({
         "job_id": job_id,
         "client_id": client_id,
         "status": "pending",
         "summary": summary,
         "next_step": "Approve or reject job",
-    }
+    })

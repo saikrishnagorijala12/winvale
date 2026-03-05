@@ -6,6 +6,7 @@ from app.models import (
     ClientContracts,
     ModificationAction
 )
+from app.schemas.generate import JobFullDetailsRead
  
  
 def group_sins_into_ranges(sin_set):
@@ -45,7 +46,7 @@ def group_sins_into_ranges(sin_set):
     return ranges
  
  
-def get_job_full_details(db: Session, job_id: int, user_email: str):
+def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDetailsRead:
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
@@ -106,7 +107,7 @@ def get_job_full_details(db: Session, job_id: int, user_email: str):
         grouped_sins_by_action[action_type] = group_sins_into_ranges(sins)
         total_unique_sins.update(sins)
  
-    return {
+    return JobFullDetailsRead.model_validate({
         "job_id": job.job_id,
  
         "client": {
@@ -144,5 +145,5 @@ def get_job_full_details(db: Session, job_id: int, user_email: str):
         "modification_summary": summary,
         "sin_groups_by_action": grouped_sins_by_action,
         "total_sins": len(total_unique_sins),
-    }
+    })
  
