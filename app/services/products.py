@@ -4,10 +4,11 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 from app.models.client_profiles import ClientProfile
 from app.models.product_master import ProductMaster
+from app.schemas.product_master import ProductReadFull, ProductPaginationRead
 
 
-def _serialize_product(p, d) -> dict:
-    return {
+def _serialize_product(p: ProductMaster, d) -> ProductReadFull:
+    data = {
         "product_id": p.product_id,
         "client_id": p.client_id,
         "client_name": p.client.company_name if p.client else None,
@@ -46,6 +47,7 @@ def _serialize_product(p, d) -> dict:
         "dim_created_time": d.created_time if d else None,
         "dim_updated_time": d.updated_time if d else None,
     }
+    return ProductReadFull.model_validate(data)
 
 
 def _base_query(db: Session):
@@ -65,7 +67,7 @@ def get_all(
     page_size: int = 50,
     search: Optional[str] = None,
     client_id: Optional[int] = None,
-):
+) -> ProductPaginationRead:
     query = _base_query(db)
 
     if client_id:
@@ -96,16 +98,16 @@ def get_all(
         .all()
     )
 
-    return {
+    return ProductPaginationRead.model_validate({
         "total": total,
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
         "items": [_serialize_product(p, p.dimension) for p in products],
-    }
+    })
 
 
-def get_by_id(db: Session, product_id: int):
+def get_by_id(db: Session, product_id: int) -> ProductReadFull:
     p = (
         _base_query(db)
         .options(
@@ -131,7 +133,7 @@ def get_by_client(
     page: int = 1,
     page_size: int = 50,
     search: Optional[str] = None
-):
+) -> ProductPaginationRead:
     query = _base_query(db).filter(ProductMaster.client_id == client_id)
     
     if search:
@@ -159,11 +161,11 @@ def get_by_client(
         .all()
     )
 
-    return {
+    return ProductPaginationRead.model_validate({
         "client_id": client_id,
         "total": total,
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
         "items": [_serialize_product(p, p.dimension) for p in products],
-    }
+    })

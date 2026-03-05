@@ -36,3 +36,13 @@ class ProductUploadRow(ORMBase):
     physical_uom: Optional[str] = None
     weight_lbs: Optional[float] = None
     warranty_period: Optional[int] = None
+
+class ProductUploadResponse(ORMBase):
+    status_code: int
+    status: Optional[str] = None
+    message: Optional[str] = None
+    inserted: int
+    updated: int
+    reactivated: int
+    deleted: int
+    skipped: int

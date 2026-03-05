@@ -16,9 +16,15 @@ from app.models import (
 from app.utils.name_to_id import get_status_id_by_name
 from app.utils.scd_helper import create_product_history_snapshot
 from app.utils.upload_helper import identity_signature, history_signature
+from app.schemas.jobs import (
+    JobCreateResponse,
+    JobPaginationRead,
+    JobWithActionsRead,
+    JobApproveResponse
+)
 
 
-def create_job(db: Session, client_id: int, email: str):
+def create_job(db: Session, client_id: int, email: str) -> JobCreateResponse:
     user = db.query(User).filter_by(email=email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
@@ -37,12 +43,12 @@ def create_job(db: Session, client_id: int, email: str):
     db.commit()
     db.refresh(job)
 
-    return {
+    return JobCreateResponse.model_validate({
         "job_id": job.job_id,
         "client_id": job.client_id,
         "status": job.status.status,
         "created_time": job.created_time,
-    }
+    })
 
 
 def list_jobs(
@@ -54,7 +60,7 @@ def list_jobs(
     status: str | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
-):
+) -> JobPaginationRead:
 
     base_query = db.query(Job)
 
@@ -105,13 +111,13 @@ def list_jobs(
     )
 
     if not jobs:
-        return {
+        return JobPaginationRead.model_validate({
             "total": total,
             "page": page,
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size,
             "items": [],
-        }
+        })
 
     job_ids = [j.job_id for j in jobs]
 
@@ -155,15 +161,15 @@ def list_jobs(
             "updated_time": j.updated_time,
         })
 
-    return {
+    return JobPaginationRead.model_validate({
         "total": total,
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
         "items": response,
-    }
+    })
 
-def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, page_size: int = 50, action_type: str | None = None):
+def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, page_size: int = 50, action_type: str | None = None) -> JobWithActionsRead:
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
@@ -211,7 +217,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
         elif a.cpl_item:
             p_name = a.cpl_item.item_name
             p_number = a.cpl_item.manufacturer_part_number
- 
+  
         actions.append({
             "action_id": a.action_id,
             "action_type": a.action_type,
@@ -232,8 +238,8 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
     ).filter_by(job_id=job_id).group_by(ModificationAction.action_type).all()
     
     action_summary = {t: count for t, count in summary_counts}
- 
-    return {
+  
+    return JobWithActionsRead.model_validate({
         "job_id": job.job_id,
         "client_id": job.client_id,
         "contract_number": job.client.contracts.contract_number if job.client and job.client.contracts else None,
@@ -250,87 +256,10 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
         "total_pages": (total_actions + page_size - 1) // page_size if total_actions > 0 else 0,
         "created_time": job.created_time,
         "updated_time": job.updated_time,
-    }
-
-# def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, page_size: int = 50):
-#     user = db.query(User).filter_by(email=user_email).first()
-#     if not user:
-#         raise HTTPException(status_code=401, detail="Invalid user")
-
-#     job = (
-#         db.query(Job)
-#         .options(
-#             joinedload(Job.client).joinedload(ClientProfile.contracts),
-#             joinedload(Job.user),
-#             joinedload(Job.status)
-#         )
-#         .filter_by(job_id=job_id)
-#         .one_or_none()
-#     )
-#     if not job:
-#         raise HTTPException(status_code=404, detail="Job not found")
-
-#     actions_query = db.query(ModificationAction).filter_by(job_id=job_id)
-#     total_actions = actions_query.count()
-#     offset = (page - 1) * page_size
-
-#     paginated_actions = (
-#         actions_query
-#         .options(
-#             joinedload(ModificationAction.product),
-#             joinedload(ModificationAction.cpl_item)
-#         )
-#         .order_by(ModificationAction.created_time.asc())
-#         .offset(offset)
-#         .limit(page_size)
-#         .all()
-#     )
-
-#     actions = []
-#     for a in paginated_actions:
-#         p_name = None
-#         p_number = None
-
-#         if a.product:
-#             p_name = a.product.item_name
-#             p_number = a.product.manufacturer_part_number
-#         elif a.cpl_item:
-#             p_name = a.cpl_item.item_name
-#             p_number = a.cpl_item.manufacturer_part_number
-
-#         actions.append({
-#             "action_id": a.action_id,
-#             "action_type": a.action_type,
-#             "product_id": a.product_id,
-#             "product_name": p_name,
-#             "manufacturer_part_number": p_number,
-#             "old_price": a.old_price,
-#             "new_price": a.new_price,
-#             "old_description": a.old_description,
-#             "new_description": a.new_description,
-#             "number_of_items_impacted": a.number_of_items_impacted,
-#             "created_time": a.created_time,
-#         })
-
-#     return {
-#         "job_id": job.job_id,
-#         "client_id": job.client_id,
-#         "contract_number": job.client.contracts.contract_number if job.client and job.client.contracts else None,
-#         "client": job.client.company_name if job.client else None,
-#         "user_id": job.user_id,
-#         "user": job.user.name if job.user else None,
-#         "status": job.status.status if job.status else None,
-#         "modifications_actions": actions,
-#         "total_actions": total_actions,
-#         "page": page,
-#         "page_size": page_size,
-#         "total_pages": (total_actions + page_size - 1) // page_size if total_actions > 0 else 0,
-#         "created_time": job.created_time,
-#         "updated_time": job.updated_time,
-#     }
+    })
 
 
-def approve_job(db: Session, job_id: int, user_email: str):
+def approve_job(db: Session, job_id: int, user_email: str) -> JobApproveResponse:
 
     job = db.query(Job).filter_by(job_id=job_id).first()
     if not job:
@@ -456,14 +385,14 @@ def approve_job(db: Session, job_id: int, user_email: str):
 
     db.commit()
 
-    return {
+    return JobApproveResponse.model_validate({
         "job_id": job.job_id,
         "status": "approved",
         "message": "Job approved successfully",
-    }
+    })
 
 
-def reject_job(db: Session, job_id: int, user_email: str):
+def reject_job(db: Session, job_id: int, user_email: str) -> JobApproveResponse:
     job = db.query(Job).filter_by(job_id=job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -478,8 +407,8 @@ def reject_job(db: Session, job_id: int, user_email: str):
     db.commit()
     db.refresh(job)
 
-    return {
+    return JobApproveResponse.model_validate({
         "job_id": job.job_id,
         "status": job.status.status,
         "message": "Job rejected successfully",
-    }
+    })

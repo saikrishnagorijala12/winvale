@@ -5,9 +5,24 @@ from datetime import datetime, timezone
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 from app.utils.name_to_id import get_role_id_by_name, get_status_id_by_name
+from app.schemas.user import UserStatusRead, UserAuthRead, UserListRead, UserRead
 
 
-def get_user_status_by_email(db: Session, email: str):
+def serialize_user(user: User, message: str | None = None) -> UserRead:
+    return UserRead.model_validate({
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "phone_no": user.phone_no,
+        "is_active": user.is_active,
+        "is_deleted": user.is_deleted,
+        "role": user.role.role_name,
+        "created_time": user.created_time,
+        "message": message
+    })
+
+
+def get_user_status_by_email(db: Session, email: str) -> UserStatusRead:
     """
     Business logic only.
     No FastAPI, no Depends, no HTTP.
@@ -16,45 +31,26 @@ def get_user_status_by_email(db: Session, email: str):
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
-        return {
+        return UserStatusRead.model_validate({
             "registered": False,
             "is_active": False
-        }
+        })
 
-    return {
+    return UserStatusRead.model_validate({
 
         "registered": True,
         "is_active": user.is_active,
         "Role": user.role.role_name
-    }
+    })
 
 
-def get_current_user_by_email(db: Session, email: str):
-    """
-    Business logic only.
-    No FastAPI, no Depends, no HTTP.
-    """
-
+def get_current_user_by_email(db: Session, email: str) -> UserRead:
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
-        return {
-            "Response Type": "Error",
-            "Message": "User Not Found"
-        }
-    
-    message = "User Feched sucessfully",
+        raise HTTPException(status_code=404, detail="User Not Found")
 
-    return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
-    }
+    return serialize_user(user, message="User Feched sucessfully")
 
 
 def update_user(
@@ -92,16 +88,7 @@ def update_user(
     db.commit()
     db.refresh(user)
 
-    return {
-        "user_id": user.user_id,
-        "name": user.name,
-        "email": user.email,
-        "phone_no": user.phone_no,
-        "is_active": user.is_active,
-        "is_deleted": user.is_deleted,
-        "role": user.role.role_name,
-        "message": "User Details updated successfully",
-    }
+    return serialize_user(user, message="User Details updated successfully")
 
 
 class UserAlreadyExistsError(Exception):
@@ -135,18 +122,7 @@ def create_user_service(
     db.refresh(user)
 
 
-    message = "User Created sucessfully",
-
-    return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
-    }
+    return serialize_user(user, message="User Created sucessfully")
 
 
 
@@ -154,14 +130,14 @@ class UserNotFoundError(Exception):
     pass
 
 
-def approve_user_service(db: Session, *, user_id: int) -> User:
+def approve_user_service(db: Session, *, user_id: int) -> UserRead:
     user = db.query(User).filter(User.user_id == user_id).first()
  
     if not user:
         raise UserNotFoundError()
  
     if user.is_active:
-        return user
+        return serialize_user(user)
     
     # if not user.is_deleted:
     #     return user
@@ -172,23 +148,11 @@ def approve_user_service(db: Session, *, user_id: int) -> User:
     db.refresh(user)
 
 
-    message = "User Approved sucessfully",
-
-
-    return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
-    }
+    return serialize_user(user, message="User Approved sucessfully")
 
 
 
-def reject_user_service(db: Session, *, user_id: int) -> User:
+def reject_user_service(db: Session, *, user_id: int) -> UserRead:
     user = (
         db.query(User)
         .filter(
@@ -207,18 +171,7 @@ def reject_user_service(db: Session, *, user_id: int) -> User:
     db.commit()
     db.refresh(user)
 
-    message = "User Rejected sucessfully"
- 
-    return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
-    }
+    return serialize_user(user, message="User Rejected sucessfully")
 
 
 DEFAULT_ROLE_NAME = "user"
@@ -244,24 +197,12 @@ def get_or_create_user(
         db.commit()
         db.refresh(user)
 
-    message ="User Created/updated sucessfully"
-
- 
-    return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
-    }
+    return serialize_user(user, message="User Created/updated sucessfully")
 
 
-def get_all_users(db: Session):
+def get_all_users(db: Session) -> UserListRead:
     users = db.query(User).all()
-    return [
+    user_list = [
         {
             "user_id": u.user_id,
             "name": u.name,
@@ -274,35 +215,25 @@ def get_all_users(db: Session):
         }
         for u in users
     ]
+    return UserListRead.model_validate({"users": user_list})
 
-def delete_user(db: Session, user_id:int):
+def delete_user(db: Session, user_id:int) -> UserRead:
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise UserNotFoundError()
 
     if user.is_deleted:
-        return user
+        return serialize_user(user)
 
     user.is_deleted = True
     user.is_active = False
     db.commit()
     db.refresh(user)
 
-    message = "User Deactivated sucessfully"
-
-    return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
-    }
+    return serialize_user(user, message="User Deactivated sucessfully")
 
 
-def change_user_role(db: Session, user_id:int,email:str):
+def change_user_role(db: Session, user_id:int,email:str) -> UserRead:
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise UserNotFoundError()
@@ -311,7 +242,7 @@ def change_user_role(db: Session, user_id:int,email:str):
         raise HTTPException(status_code=403, detail="Action Not Allowed for this User")
 
     if user.is_deleted:
-        return user
+        raise HTTPException(status_code=400, detail="User is deleted")
     
     if user.role_id == 1:
         user.role_id = 2
@@ -322,15 +253,4 @@ def change_user_role(db: Session, user_id:int,email:str):
         db.commit()
         db.refresh(user)
 
-    message = "User role changed sucessfully"
-
-    return {
-        "user_id" : user.user_id,
-        "name" : user.name,
-        "email" : user.email,
-        "phone_no" : user.phone_no,
-        "is_active" : user.is_active,
-        "is_deleted" : user.is_deleted,
-        "role": user.role.role_name,
-        "message" : message
-    }
+    return serialize_user(user, message="User role changed sucessfully")

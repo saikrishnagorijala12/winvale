@@ -7,7 +7,7 @@ from app.models.client_contracts import ClientContracts
 from app.models.product_master import ProductMaster
 from app.models.status import Status
 from app.models.users import User
-from app.schemas.client_profile import ClientProfileCreate, ClientProfileUpdate
+from app.schemas.client_profile import ClientProfileCreate, ClientProfileUpdate, ClientProfileRead, ClientListRead
 from app.utils.name_to_id import get_status_id_by_name
 import os
 from datetime import datetime, timezone
@@ -20,8 +20,8 @@ class ClientAlreadyExistsError(Exception):
 class ClientNotFoundError(Exception):
     pass
 
-def serialize_client(c: ClientProfile) -> dict:
-    return {
+def serialize_client(c: ClientProfile) -> ClientProfileRead:
+    data = {
         "client_id": c.client_id,
         "contract_number": c.contracts.contract_number if c.contracts else None,
         "company_name": c.company_name,
@@ -46,9 +46,10 @@ def serialize_client(c: ClientProfile) -> dict:
         "updated_time": c.updated_time,
         "company_logo_url": c.company_logo_url,
     }
+    return ClientProfileRead.model_validate(data)
 
  
-def get_all_clients(db: Session):
+def get_all_clients(db: Session) -> list[ClientProfileRead]:
     clients = (
         db.query(ClientProfile)
         .filter(ClientProfile.is_deleted.is_(False))
@@ -61,7 +62,7 @@ def get_all_clients(db: Session):
  
     
 
-def get_active_clients(db: Session):
+def get_active_clients(db: Session) -> list[ClientListRead]:
  
     product_exists = (
         db.query(ProductMaster.product_id)
@@ -85,21 +86,22 @@ def get_active_clients(db: Session):
     result = []
  
     for client, has_products in clients:
-        data = serialize_client(client)
+        data = serialize_client(client).model_dump()
         data["has_products"] = bool(has_products)
-        result.append(data)
+        result.append(ClientListRead.model_validate(data))
  
     return result
  
-def get_client_by_id(db: Session, client_id: int) -> ClientProfile | None:
+def get_client_by_id(db: Session, client_id: int) -> ClientProfileRead | None:
     c = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
     
-    
+    if not c:
+        return None
     return serialize_client(c)
 
  
  
-def create_client_profile(db: Session, payload: ClientProfileCreate, current_user):
+def create_client_profile(db: Session, payload: ClientProfileCreate, current_user) -> ClientProfileRead:
     """
     Create a client profile with duplicate email / phone checks.
     """
@@ -167,7 +169,7 @@ def update_client(
     db: Session,
     client_id: int,
     data: ClientProfileUpdate,
-) -> ClientProfile | None:
+) -> ClientProfileRead | None:
     """
     Partial update (PATCH semantics).
     """
@@ -263,7 +265,7 @@ def update_client_status(
     *,
     client_id: int,
     action: str,
-) -> ClientProfile:
+) -> ClientProfileRead:
     """
     Single service for approve / reject.
     Uses status table (no hard-coded IDs).
@@ -282,7 +284,7 @@ def update_client_status(
     target_status_id = get_status_id_by_name(db, target)
 
     if client.status_id == target_status_id:
-        return client
+        return serialize_client(client)
  
     if action == "approve":
         rejected_status = (
@@ -297,15 +299,15 @@ def update_client_status(
     db.commit()
     db.refresh(client)
  
-    return client
+    return serialize_client(client)
  
-def delete_client(db: Session, client_id:int):
+def delete_client(db: Session, client_id:int) -> ClientProfileRead:
     client = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
     if not client:
         raise ClientNotFoundError()
 
     if client.is_deleted:
-        return client
+        return serialize_client(client)
 
     client.is_deleted = True
     db.commit()
@@ -314,7 +316,7 @@ def delete_client(db: Session, client_id:int):
     return serialize_client(client)
 
 
-def upload_company_logo(db: Session, client_id: int, file: UploadFile, user_email: str) -> dict:
+def upload_company_logo(db: Session, client_id: int, file: UploadFile, user_email: str) -> ClientProfileRead:
     client = db.query(ClientProfile).filter_by(client_id=client_id).first()
     if not client:
         raise ClientNotFoundError("Client not found")
