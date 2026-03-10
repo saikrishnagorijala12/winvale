@@ -29,9 +29,6 @@ def upload_cpl_service(
     user_email: str,
 ) -> CPLUploadResponse:
 
-    job = create_job(db, client_id, user_email)
-    job_id = job.job_id
-
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
@@ -59,6 +56,9 @@ def upload_cpl_service(
             status_code=400,
             detail=f"Missing required columns: {', '.join(missing)}"
         )
+    
+    job = create_job(db, client_id, user_email)
+    job_id = job.job_id
 
     cpl_map = {}
 

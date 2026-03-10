@@ -8,28 +8,18 @@ from sqlalchemy import text
 from app.models.base import Base
 from app.utils.db_init import seed_static_data
 from app.redis_client import redis_client
+from app.config import settings
 
 db_engine = None
 SessionLocal = None
 
 
-def get_db_config():
-    DB_DIALECT = os.getenv('DB_DIALECT')
-    DB_USERNAME = os.getenv('DB_USERNAME')
-    DB_PASSWORD = os.getenv('DB_PASSWORD')
-    DB_SERVER = os.getenv('DB_SERVER')
-    DB_PORT =os.getenv('DB_PORT')
-    WORKING_DB = os.getenv('WORKING_DB')
-
-    url = f"{DB_DIALECT}://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}:{DB_PORT}/{WORKING_DB}"
-    return url
-
 def create_app():
     global db_engine,SessionLocal
-    load_dotenv()
+    
     app = FastAPI(
-        title= "Winvale GSA Automation",
-        version="1.0.1"
+        title= settings.APP_TITLE,
+        version= settings.APP_VERSION
     )
 
     @app.middleware("http")
@@ -44,15 +34,15 @@ def create_app():
                     print(f"Error flushing Redis cache: {e}")
         return response
 
-    DB_URL = get_db_config()
+    DB_URL = settings.db_url
     tmp_engine = create_engine(DB_URL)
     try:
         with tmp_engine.begin() as conn:
-            conn.execute(text("CREATE SCHEMA IF NOT EXISTS dev"))
+            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {settings.DB_SCHEMA}"))
     finally:
         tmp_engine.dispose()
-    # print("DB_URL : "+DB_URL)
-    db_engine = create_engine(DB_URL, connect_args={"options": "-c search_path=dev"})
+    
+    db_engine = create_engine(DB_URL, connect_args={"options": f"-c search_path={settings.DB_SCHEMA}"})
     SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=db_engine)
     Base.metadata.create_all(bind=db_engine)
     seed_static_data(SessionLocal())

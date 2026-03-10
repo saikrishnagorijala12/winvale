@@ -1,5 +1,5 @@
-import os
 import pytest
+import os
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -7,12 +7,9 @@ from sqlalchemy.orm import sessionmaker
 from app.database import get_db
 from app.models.base import Base
 from main import app
+from app.config import settings
 
-DATABASE_URL = (
-    f"{os.getenv('DB_DIALECT')}://{os.getenv('DB_USERNAME')}:"
-    f"{os.getenv('DB_PASSWORD')}@{os.getenv('DB_SERVER')}:"
-    f"{os.getenv('DB_PORT')}/{os.getenv('WORKING_DB')}"
-)
+DATABASE_URL = settings.db_url
 
 engine = create_engine(DATABASE_URL)
 TestingSessionLocal = sessionmaker(

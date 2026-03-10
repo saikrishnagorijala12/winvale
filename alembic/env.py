@@ -4,21 +4,9 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 import os
 from alembic import context
-from dotenv import load_dotenv
-load_dotenv()
+from app.config import settings
 
-
-
-
-def get_db_config() -> str:
-    return (
-        f"{os.getenv('DB_DIALECT')}://"
-        f"{os.getenv('DB_USERNAME')}:{os.getenv('DB_PASSWORD')}"
-        f"@{os.getenv('DB_SERVER')}:{os.getenv('DB_PORT')}/"
-        f"{os.getenv('WORKING_DB')}"
-    )
-
-DATABASE_URL = get_db_config()
+DATABASE_URL = settings.db_url
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -88,7 +76,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             include_schemas=True,
-            version_table_schema="dev"
+            version_table_schema=settings.DB_SCHEMA
         )
 
         with context.begin_transaction():

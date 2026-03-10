@@ -1,34 +1,23 @@
+import re
+import os
 import boto3
 from fastapi import HTTPException
-import os, dotenv
 from botocore.exceptions import ClientError
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.client_profiles import ClientProfile
 from app.models.users import User
 from app.models.file_uploads import FileUpload
-from app.utils import s3_upload as s3
-
-import re
-import os
-
-
-dotenv.load_dotenv()
-S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
-AWS_REGION =  os.getenv('AWS_REGION_s3')
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET = os.getenv('AWS_SECRET')
-
+from app.config import settings
 
 s3_client = boto3.client(
     "s3",
-    region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET
+    region_name=settings.AWS_REGION_S3,
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET
 )
 
 def gsa_upload(file,filename,type):
-    # print(file)
     try:
         file.file.seek(0) 
         if type == "gsa_upload":
@@ -40,13 +29,12 @@ def gsa_upload(file,filename,type):
 
         s3_client.upload_fileobj(
             file.file,
-            S3_BUCKET_NAME,
+            settings.S3_BUCKET_NAME,
             s3_key,
             ExtraArgs={"ContentType": file.content_type},
         )
 
-        s3_url = f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
-        # print(s3_url)
+        s3_url = f"https://{settings.S3_BUCKET_NAME}.s3.{settings.AWS_REGION_S3}.amazonaws.com/{s3_key}"
 
         return {
         "s3_key": s3_key,

@@ -11,6 +11,11 @@ from app.models.cpl_list import CPLList
 from datetime import datetime, timezone
 from typing import List, Optional
 from app.models.modification_action import ModificationAction
+from app.utils.export_constants import (
+    PRICE_CHANGE_HEADERS, PRICE_CHANGE_GROUP_ROW, PRICE_CHANGE_MERGES,
+    STANDARD_MODIFICATION_HEADERS, STANDARD_MODIFICATION_GROUP_ROW, STANDARD_MODIFICATION_MERGES,
+    PRODUCT_EXPORT_HEADERS, PRODUCT_EXPORT_GROUP_ROW, PRODUCT_EXPORT_MERGES
+)
 
 
 def export_price_modifications_excel(
@@ -51,53 +56,14 @@ def export_price_modifications_excel(
 
     wb = Workbook(write_only=True)
 
-    base_headers = [
-        "item_type", "manufacturer", "manufacturer_part_number",
-        "vendor_part_number", "sin", "item_name", "item_description",
-        "recycled_content_percent", "uom", "quantity_per_pack",
-        "quantity_unit_uom", "commercial_price", "mfc_name", "mfc_price",
-        "govt_price_no_fee", "govt_price_with_fee", "country_of_origin",
-        "delivery_days", "lead_time_code", "fob_us", "fob_ak",
-        "fob_hi", "fob_pr", "nsn", "upc", "unspsc",
-        "sale_price_with_fee", "start_date", "stop_date",
-        "default_photo", "photo_2", "photo_3", "photo_4",
-        "product_url", "warranty_period", "warranty_unit_of_time",
-        "length", "width", "height", "physical_uom", "weight_lbs",
-        "product_info_code", "url_508", "hazmat",
-        "dealer_cost", "mfc_markup_percentage",
-        "govt_markup_percentage",
-    ]
+    # --- Header Definitions imported from export_constants.py ---
+    price_change_headers = PRICE_CHANGE_HEADERS
+    price_change_group_row = PRICE_CHANGE_GROUP_ROW
+    price_change_merges = PRICE_CHANGE_MERGES
 
-    group_row = [
-        "Base Product or Accessory",
-        "Manufacturer Information", "",
-        "Vendor Part Number",
-        "Special Item Number",
-        "Product Information", "", "",
-        "Unit of Measure",
-        "Quantity Per Pack", "",
-        "Commercial Price / MSRP",
-        "Most Favored Customer", "",
-        "Price Proposal", "",
-        "Country of Origin",
-        "Delivery Information", "", "", "", "", "",
-        "National Stock Number",
-        "UPC",
-        "UNSPSC",
-        "Temporary Price Reduction (TPR)", "", "",
-        "Photo File References", "", "", "", "",
-        "Warranty Duration", "",
-        "Product Dimensions", "", "", "", "",
-        "Product Information", "", "",
-        "Dealer Markup", "", ""
-    ]
-
-    merges = [
-        (2, 3), (6, 8), (10, 11), (13, 14),
-        (15, 16), (18, 23), (27, 29),
-        (30, 34), (35, 36), (37, 41),
-        (42, 44), (45, 47)
-    ]
+    standard_headers = STANDARD_MODIFICATION_HEADERS
+    standard_group_row = STANDARD_MODIFICATION_GROUP_ROW
+    standard_merges = STANDARD_MODIFICATION_MERGES
 
     fill_dark = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     fill_light = PatternFill(start_color="DAE3F3", end_color="DAE3F3", fill_type="solid")
@@ -111,25 +77,31 @@ def export_price_modifications_excel(
     header_border = Border(top=thin, bottom=thin, left=thin, right=thin)
 
     sheets = {}
+    sheet_row_counters = {}
 
-    def set_fixed_widths(ws):
-        for col in range(1, len(base_headers) + 1):
+    def set_fixed_widths(ws, headers):
+        for col in range(1, len(headers) + 1):
             ws.column_dimensions[get_column_letter(col)].width = 18
 
-    def create_sheet(title):
+    def create_sheet(title, action_type):
         ws = wb.create_sheet(title)
         ws.freeze_panes = "D3"
         ws.row_dimensions[1].height = 45
         ws.row_dimensions[2].height = 35
 
-        set_fixed_widths(ws)
+        is_price_tab = action_type in ["PRICE_INCREASE", "PRICE_DECREASE"]
+        h_row_1 = price_change_group_row if is_price_tab else standard_group_row
+        h_row_2 = price_change_headers if is_price_tab else standard_headers
+        h_merges = price_change_merges if is_price_tab else standard_merges
 
-        for start, end in merges:
+        set_fixed_widths(ws, h_row_2)
+
+        for start, end in h_merges:
             ws.merged_cells.add(f"{get_column_letter(start)}1:{get_column_letter(end)}1")
 
         # ---- Row 1 (Section Header) ----
         header_row_1 = []
-        for value in group_row:
+        for value in h_row_1:
             cell = WriteOnlyCell(ws, value=value)
             cell.fill = fill_dark
             cell.font = font_white
@@ -140,7 +112,7 @@ def export_price_modifications_excel(
 
         # ---- Row 2 (Column Headers) ----
         header_row_2 = []
-        for value in base_headers:
+        for value in h_row_2:
             cell = WriteOnlyCell(ws, value=value)
             cell.fill = fill_light
             cell.font = font_standard
@@ -149,13 +121,14 @@ def export_price_modifications_excel(
             header_row_2.append(cell)
         ws.append(header_row_2)
 
+        sheet_row_counters[action_type] = 3  # Data starts at row 3
         return ws
 
     selected_types_set = set(selected_types)
 
     for action_type, title in ordered_tabs:
         if action_type in selected_types_set:
-            sheets[action_type] = create_sheet(title)
+            sheets[action_type] = create_sheet(title, action_type)
 
     for mod in query.yield_per(500):
 
@@ -166,7 +139,24 @@ def export_price_modifications_excel(
         p = mod.product
         cpl = mod.cpl_item
         d = p.dimension if p else None
-        price = mod.new_price if mod.new_price is not None else mod.old_price
+        is_price_tab = mod.action_type in ["PRICE_INCREASE", "PRICE_DECREASE"]
+
+        if is_price_tab:
+            old_price = float(mod.old_price) if mod.old_price is not None else None
+            new_price = float(mod.new_price) if mod.new_price is not None else None
+
+            current_row = sheet_row_counters.get(mod.action_type, 3)
+            # Formula: IFERROR((NewPrice - OldPrice) / OldPrice, 0)
+            # OldPrice is Col L (12), NewPrice is Col M (13)
+            formula = f"=IFERROR((M{current_row}-L{current_row})/L{current_row}, 0)"
+            
+            perc_change_cell = WriteOnlyCell(ws, value=formula)
+            perc_change_cell.number_format = "0.00%"
+
+            price_columns = [old_price, new_price, perc_change_cell]
+        else:
+            price = mod.new_price if mod.new_price is not None else mod.old_price
+            price_columns = [float(price) if price is not None else None]
 
         row = [
             p.item_type if p else None,
@@ -180,7 +170,7 @@ def export_price_modifications_excel(
             p.uom if p else None,
             p.quantity_per_pack if p else None,
             p.quantity_unit_uom if p else None,
-            float(price) if price is not None else None,
+        ] + price_columns + [
             p.mfc_name if p else None,
             float(p.mfc_price) if p and p.mfc_price is not None else None,
             float(p.govt_price_no_fee) if p and p.govt_price_no_fee is not None else None,
@@ -219,6 +209,8 @@ def export_price_modifications_excel(
         ]
 
         ws.append(row)
+        if mod.action_type in sheet_row_counters:
+            sheet_row_counters[mod.action_type] += 1
 
     return wb
 
@@ -240,57 +232,14 @@ def export_products_excel(db, client_id: Optional[int] = None):
     wb = Workbook(write_only=True)
     ws = wb.create_sheet("PRODUCTS")
 
-    base_headers = [
-        "item_type", "manufacturer", "manufacturer_part_number",
-        "vendor_part_number", "sin", "item_name", "item_description",
-        "recycled_content_percent", "uom", "quantity_per_pack",
-        "quantity_unit_uom", "commercial_price", "mfc_name", "mfc_price",
-        "govt_price_no_fee", "govt_price_with_fee", "country_of_origin",
-        "delivery_days", "lead_time_code", "fob_us", "fob_ak",
-        "fob_hi", "fob_pr", "nsn", "upc", "unspsc",
-        "sale_price_with_fee", "start_date", "stop_date",
-        "default_photo", "photo_2", "photo_3", "photo_4",
-        "product_url", "warranty_period", "warranty_unit_of_time",
-        "length", "width", "height", "physical_uom", "weight_lbs",
-        "product_info_code", "url_508", "hazmat",
-        "dealer_cost", "mfc_markup_percentage",
-        "govt_markup_percentage",
-    ]
-
-    group_row = [
-        "Base Product or Accessory",
-        "Manufacturer Information", "",
-        "Vendor Part Number",
-        "Special Item Number",
-        "Product Information", "", "",
-        "Unit of Measure",
-        "Quantity Per Pack", "",
-        "Commercial Price / MSRP",
-        "Most Favored Customer", "",
-        "Price Proposal", "",
-        "Country of Origin",
-        "Delivery Information", "", "", "", "", "",
-        "National Stock Number",
-        "UPC",
-        "UNSPSC",
-        "Temporary Price Reduction (TPR)", "", "",
-        "Photo File References", "", "", "", "",
-        "Warranty Duration", "",
-        "Product Dimensions", "", "", "", "",
-        "Product Information / Categorization", "", "",
-        "Dealer Markup", "", ""
-    ]
+    base_headers = PRODUCT_EXPORT_HEADERS[:]
+    group_row = PRODUCT_EXPORT_GROUP_ROW[:]
 
     if client_id is None:
         base_headers.insert(0, "client_name")
         group_row.insert(0, "Client Details")
 
-    merges = [
-        (2, 3), (6, 8), (10, 11), (13, 14),
-        (15, 16), (18, 23), (27, 29),
-        (30, 34), (35, 36), (37, 41),
-        (42, 44), (45, 47)
-    ]
+    merges = PRODUCT_EXPORT_MERGES
 
     # Shift merges if "Client Details" was inserted
     offset = 1 if client_id is None else 0
