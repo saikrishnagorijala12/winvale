@@ -43,6 +43,15 @@ class ModificationSummary(ORMBase):
     price_increased: int
     price_decreased: int
 
+class PriceRange(ORMBase):
+    min: float | None
+    max: float | None
+ 
+ 
+class Percentage(ORMBase):
+    price_increase: PriceRange
+    price_decrease: PriceRange
+
 class JobFullDetailsRead(ORMBase):
     job_id: int
     client: ClientInfo
@@ -51,3 +60,6 @@ class JobFullDetailsRead(ORMBase):
     modification_summary: ModificationSummary
     sin_groups_by_action: Dict[str, List[str]]
     total_sins: int
+    percentage: Percentage
+    countries_of_origin: List[str]
+

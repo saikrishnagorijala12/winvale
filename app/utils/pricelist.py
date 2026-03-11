@@ -38,6 +38,8 @@ HEADER_ALIASES = {
         "commercial_list_price_(gv)",
         "commercial_list_price_gv",
         "commercial_list_price",
+        "commercial_price_list",
+        "cpl",
         "commercial_price",
         "list_price",
         "price",

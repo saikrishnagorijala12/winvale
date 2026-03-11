@@ -146,9 +146,7 @@ def export_price_modifications_excel(
             new_price = float(mod.new_price) if mod.new_price is not None else None
 
             current_row = sheet_row_counters.get(mod.action_type, 3)
-            # Formula: IFERROR((NewPrice - OldPrice) / OldPrice, 0)
-            # OldPrice is Col L (12), NewPrice is Col M (13)
-            formula = f"=IFERROR((M{current_row}-L{current_row})/L{current_row}, 0)"
+            formula = f"=IFERROR(ABS((M{current_row}-L{current_row})/L{current_row}),0)"
             
             perc_change_cell = WriteOnlyCell(ws, value=formula)
             perc_change_cell.number_format = "0.00%"

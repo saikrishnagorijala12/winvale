@@ -8,45 +8,13 @@ from app.models import (
 )
 from app.schemas.generate import JobFullDetailsRead
  
- 
 def group_sins_into_ranges(sin_set):
-    numeric_sins = []
- 
-    for sin in sin_set:
-        try:
-            numeric_sins.append(int(sin))
-        except (ValueError, TypeError):
-            continue
- 
-    if not numeric_sins:
+    if not sin_set:
         return []
- 
-    numeric_sins = sorted(set(numeric_sins))
- 
-    ranges = []
-    start = numeric_sins[0]
-    prev = numeric_sins[0]
- 
-    for num in numeric_sins[1:]:
-        if num == prev + 1:
-            prev = num
-        else:
-            if start == prev:
-                ranges.append(str(start))
-            else:
-                ranges.append(f"{start}-{prev}")
-            start = num
-            prev = num
- 
-    if start == prev:
-        ranges.append(str(start))
-    else:
-        ranges.append(f"{start}-{prev}")
- 
-    return ranges
- 
+    return sorted({str(sin).strip() for sin in sin_set if sin})
  
 def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDetailsRead:
+ 
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
@@ -55,10 +23,8 @@ def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDe
         db.query(Job)
         .options(
             joinedload(Job.client),
-            joinedload(Job.modification_actions)
-                .joinedload(ModificationAction.product),
-            joinedload(Job.modification_actions)
-                .joinedload(ModificationAction.cpl_item),
+            joinedload(Job.modification_actions).joinedload(ModificationAction.product),
+            joinedload(Job.modification_actions).joinedload(ModificationAction.cpl_item),
         )
         .filter(Job.job_id == job_id)
         .first()
@@ -73,32 +39,53 @@ def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDe
         .first()
     )
  
-    summary = {
-        "products_added": 0,
-        "products_deleted": 0,
-        "description_changed": 0,
-        "price_increased": 0,
-        "price_decreased": 0,
+    action_map = {
+        "NEW_PRODUCT": "products_added",
+        "REMOVED_PRODUCT": "products_deleted",
+        "DESCRIPTION_CHANGE": "description_changed",
+        "PRICE_INCREASE": "price_increased",
+        "PRICE_DECREASE": "price_decreased",
     }
  
+    summary = {v: 0 for v in action_map.values()}
+ 
     sin_by_action = {}
+    countries_of_origin = set()
+ 
+    price_increase_changes = []
+    price_decrease_changes = []
  
     for a in job.modification_actions:
  
-        if a.action_type == "NEW_PRODUCT":
-            summary["products_added"] += 1
-        elif a.action_type == "REMOVED_PRODUCT":
-            summary["products_deleted"] += 1
-        elif a.action_type == "DESCRIPTION_CHANGE":
-            summary["description_changed"] += 1
-        elif a.action_type == "PRICE_INCREASE":
-            summary["price_increased"] += 1
-        elif a.action_type == "PRICE_DECREASE":
-            summary["price_decreased"] += 1
+        if a.action_type in action_map:
+            summary[action_map[a.action_type]] += 1
  
-        if a.product and a.product.sin:
-            print(a.product,a.product.sin,a.action_type)
-            sin_by_action.setdefault(a.action_type, set()).add(a.product.sin)
+        old_price = a.old_price
+        new_price = a.new_price
+ 
+        if old_price is not None and new_price is not None and old_price != 0:
+ 
+            percent_change = round(((new_price - old_price) / old_price) * 100, 2)
+ 
+            if a.action_type == "PRICE_INCREASE":
+                price_increase_changes.append(percent_change)
+ 
+            elif a.action_type == "PRICE_DECREASE":
+                price_decrease_changes.append(abs(percent_change))
+ 
+        p = a.product
+        cpl = a.cpl_item
+        country = p.country_of_origin if p else (cpl.origin_country if cpl else None)
+        if country:
+            countries_of_origin.add(country)
+        if p and p.sin:
+            sin_by_action.setdefault(a.action_type, set()).add(p.sin)
+ 
+    increase_min = min(price_increase_changes) if price_increase_changes else None
+    increase_max = max(price_increase_changes) if price_increase_changes else None
+ 
+    decrease_min = min(price_decrease_changes) if price_decrease_changes else None
+    decrease_max = max(price_decrease_changes) if price_decrease_changes else None
  
     grouped_sins_by_action = {}
     total_unique_sins = set()
@@ -113,11 +100,13 @@ def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDe
         "client": {
             "client_id": job.client.client_id if job.client else None,
             "company_name": job.client.company_name if job.client else None,
-            "logo": job.client.company_logo_url if job.client else None
+            "logo": job.client.company_logo_url if job.client else None,
         },
-        "negotiator":{
-            "name":job.client.contact_officer_name
-        }, 
+ 
+        "negotiator": {
+            "name": job.client.contact_officer_name if job.client else None
+        },
+ 
         "client_contract": None if not contract else {
             "contract_officer_name": contract.contract_officer_name,
             "contract_number": contract.contract_number,
@@ -145,5 +134,17 @@ def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDe
         "modification_summary": summary,
         "sin_groups_by_action": grouped_sins_by_action,
         "total_sins": len(total_unique_sins),
-    })
  
+        "percentage": {
+            "price_increase": {
+                "min": increase_min,
+                "max": increase_max
+            },
+            "price_decrease": {
+                "min": decrease_min,
+                "max": decrease_max
+            }
+        },
+ 
+        "countries_of_origin": list(countries_of_origin)
+    })
