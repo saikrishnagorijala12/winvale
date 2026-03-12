@@ -1,9 +1,7 @@
 import sys
 import os
 from unittest.mock import MagicMock
-# openpyxl imports will be checked after run
 
-# Add the project root to sys.path
 sys.path.append(os.getcwd())
 
 from app.services.export import export_price_modifications_excel
@@ -37,7 +35,6 @@ def test_export():
     print("Testing Price Change Formulas...")
     wb = export_price_modifications_excel(db, client_id=1, job_id=1, selected_types=["PRICE_INCREASE"])
     
-    # In write_only mode, we might not be able to read back without saving
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
         wb.save(tmp.name)
