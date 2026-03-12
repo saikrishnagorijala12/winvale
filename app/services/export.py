@@ -56,7 +56,6 @@ def export_price_modifications_excel(
 
     wb = Workbook(write_only=True)
 
-    # --- Header Definitions imported from export_constants.py ---
     price_change_headers = PRICE_CHANGE_HEADERS
     price_change_group_row = PRICE_CHANGE_GROUP_ROW
     price_change_merges = PRICE_CHANGE_MERGES
@@ -121,7 +120,7 @@ def export_price_modifications_excel(
             header_row_2.append(cell)
         ws.append(header_row_2)
 
-        sheet_row_counters[action_type] = 3  # Data starts at row 3
+        sheet_row_counters[action_type] = 3 
         return ws
 
     selected_types_set = set(selected_types)
