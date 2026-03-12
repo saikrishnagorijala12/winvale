@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.models.users import User
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.user import PaginatedUserRead, UserCreate, UserRead, UserUpdate
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 import app.services.user as u
@@ -130,8 +130,12 @@ def approve_or_reject_user(
         )
 
 
-@router.get("/all")
+@router.get("/all", response_model=PaginatedUserRead)
 def get_all_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    status: str = Query("all"),
+    search: str | None = Query(None),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -141,8 +145,20 @@ def get_all_users(
             detail="Admin privileges required",
         )
 
+    skip = (page - 1) * page_size
+    cache_key = f"users:all:p{page}:s{page_size}:st:{status}:q:{search or ''}"
+
     return cache_get_or_set(
-        redis_client, "users:all", CACHE_TTL, lambda: u.get_all_users(db)
+        redis_client,
+        cache_key,
+        CACHE_TTL,
+        lambda: u.get_all_users(
+            db=db,
+            skip=skip,
+            limit=page_size,
+            status=status,
+            search=search
+        )
     )
 
 

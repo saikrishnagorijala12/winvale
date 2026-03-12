@@ -12,6 +12,7 @@ from app.utils.name_to_id import get_status_id_by_name
 import os
 from datetime import datetime, timezone
 from app.utils.s3_upload import gsa_upload, clean
+from .contracts import _serialize_contract
  
 class ClientAlreadyExistsError(Exception):
     pass
@@ -45,20 +46,70 @@ def serialize_client(c: ClientProfile) -> ClientProfileRead:
         "created_time": c.created_time,
         "updated_time": c.updated_time,
         "company_logo_url": c.company_logo_url,
+        "contract": _serialize_contract(c.contracts) if c.contracts else None,
     }
     return ClientProfileRead.model_validate(data)
 
  
-def get_all_clients(db: Session) -> list[ClientProfileRead]:
+def get_all_clients(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    status: str | None = None,
+    search: str | None = None
+) -> dict:
+    from app.models.client_contracts import ClientContracts
+    from app.models.status import Status
+
+    query = db.query(ClientProfile).filter(ClientProfile.is_deleted.is_(False))
+
+    if status and status != "all":
+        query = query.join(ClientProfile.status).filter(Status.status == status)
+
+    if search:
+        search_filter = or_(
+            ClientProfile.company_name.ilike(f"%{search}%"),
+            ClientProfile.company_email.ilike(f"%{search}%"),
+            ClientProfile.contact_officer_name.ilike(f"%{search}%"),
+            ClientProfile.contracts.has(ClientContracts.contract_number.ilike(f"%{search}%"))
+        )
+        query = query.filter(search_filter)
+
+    total_count = query.count()
+    
     clients = (
-        db.query(ClientProfile)
-        .filter(ClientProfile.is_deleted.is_(False))
+        query
+        .options(joinedload(ClientProfile.contracts))
+        .order_by(ClientProfile.created_time.desc())
+        .offset(skip)
+        .limit(limit)
         .all()
     )
-    return [
-        serialize_client(c)
-        for c in clients
-    ]
+
+    product_exists_subquery = (
+        db.query(ProductMaster.client_id)
+        .filter(ProductMaster.is_deleted.is_(False))
+        .subquery()
+    )
+    
+    client_ids_with_products = {row[0] for row in db.query(product_exists_subquery).all()}
+
+    result_clients = []
+    for c in clients:
+        data = serialize_client(c).model_dump()
+        data["has_products"] = c.client_id in client_ids_with_products
+        result_clients.append(ClientListRead.model_validate(data))
+
+    return {
+        "clients": result_clients,
+        "total_count": total_count,
+        "status_counts": {
+            "all": db.query(ClientProfile).filter(ClientProfile.is_deleted.is_(False)).count(),
+            "pending": db.query(ClientProfile).join(ClientProfile.status).filter(ClientProfile.is_deleted.is_(False), Status.status == "pending").count(),
+            "approved": db.query(ClientProfile).join(ClientProfile.status).filter(ClientProfile.is_deleted.is_(False), Status.status == "approved").count(),
+            "rejected": db.query(ClientProfile).join(ClientProfile.status).filter(ClientProfile.is_deleted.is_(False), Status.status == "rejected").count(),
+        }
+    }
  
     
 
@@ -80,6 +131,7 @@ def get_active_clients(db: Session) -> list[ClientListRead]:
             ClientProfile.is_deleted.is_(False),
             Status.status == "approved"
         )
+        .order_by(ClientProfile.created_time.desc())
         .all()
     )
  

@@ -8,6 +8,7 @@ from app.schemas.client_profile import (
     ClientProfileRead,
     ClientProfileCreate,
     ClientProfileUpdate,
+    PaginatedClientRead,
 )
 from app.services import clients as cps
 from app.utils.admin_check import require_admin
@@ -26,13 +27,29 @@ def _invalidate_client_cache(client_id: int | None = None):
     invalidate_keys(redis_client, *keys)
 
 
-@router.get("")
+@router.get("", response_model=PaginatedClientRead)
 def get_all_clients(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    status: str = Query("all"),
+    search: str | None = Query(None),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    skip = (page - 1) * page_size
+    cache_key = f"clients:all:p{page}:s{page_size}:st:{status}:q:{search or ''}"
+    
     return cache_get_or_set(
-        redis_client, "clients:all", CACHE_TTL, lambda: cps.get_all_clients(db)
+        redis_client,
+        cache_key,
+        CACHE_TTL,
+        lambda: cps.get_all_clients(
+            db=db,
+            skip=skip,
+            limit=page_size,
+            status=status,
+            search=search
+        )
     )
 
 

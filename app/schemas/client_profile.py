@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import EmailStr, field_validator
 from .base import ORMBase
+from .client_contract import ClientContractRead
  
  
 def empty_str_to_none(v):
@@ -49,9 +50,15 @@ class ClientProfileRead(ClientProfileBase):
     is_deleted: bool
     created_time: datetime
     updated_time: datetime
+    contract: Optional[ClientContractRead] = None
  
 class ClientListRead(ClientProfileRead):
     has_products: bool
+ 
+class PaginatedClientRead(ORMBase):
+    clients: list[ClientListRead]
+    total_count: int
+    status_counts: dict[str, int]
  
  
 class ClientProfileUpdate(ORMBase):

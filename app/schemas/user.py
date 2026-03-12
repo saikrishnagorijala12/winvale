@@ -37,3 +37,8 @@ class UserListRead(ORMBase):
 class UserUpdate(ORMBase):
     name: Optional[str] = None
     phone_no: Optional[str] = None
+
+class PaginatedUserRead(ORMBase):
+    users: List[UserRead]
+    total_count: int
+    status_counts: dict[str, int]

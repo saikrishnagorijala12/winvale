@@ -7,7 +7,7 @@ from app.utils.name_to_id import get_status_id_by_name
 
 
 def get_all_client_contracts(db: Session) -> list[ClientContractRead]:
-    contacts = db.query(ClientContracts).all()
+    contacts = db.query(ClientContracts).order_by(ClientContracts.created_time.desc()).all()
     
     return [
         ClientContractRead.model_validate({

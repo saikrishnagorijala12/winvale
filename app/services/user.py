@@ -200,8 +200,35 @@ def get_or_create_user(
     return serialize_user(user, message="User Created/updated sucessfully")
 
 
-def get_all_users(db: Session) -> UserListRead:
-    users = db.query(User).all()
+def get_all_users(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    status: str | None = None,
+    search: str | None = None
+) -> dict:
+    from sqlalchemy import or_
+    query = db.query(User)
+
+    if status and status != "all":
+        if status == "pending":
+            query = query.filter(User.is_active.is_(False), User.is_deleted.is_(False))
+        elif status == "approved":
+            query = query.filter(User.is_active.is_(True), User.is_deleted.is_(False))
+        elif status == "rejected":
+            query = query.filter(User.is_deleted.is_(True))
+
+    if search:
+        query = query.filter(
+            or_(
+                User.name.ilike(f"%{search}%"),
+                User.email.ilike(f"%{search}%")
+            )
+        )
+
+    total_count = query.count()
+    users = query.order_by(User.created_time.desc()).offset(skip).limit(limit).all()
+    
     user_list = [
         {
             "user_id": u.user_id,
@@ -215,7 +242,16 @@ def get_all_users(db: Session) -> UserListRead:
         }
         for u in users
     ]
-    return UserListRead.model_validate({"users": user_list})
+    return {
+        "users": user_list,
+        "total_count": total_count,
+        "status_counts": {
+            "all": db.query(User).count(),
+            "pending": db.query(User).filter(User.is_active.is_(False), User.is_deleted.is_(False)).count(),
+            "approved": db.query(User).filter(User.is_active.is_(True), User.is_deleted.is_(False)).count(),
+            "rejected": db.query(User).filter(User.is_deleted.is_(True)).count(),
+        }
+    }
 
 def delete_user(db: Session, user_id:int) -> UserRead:
     user = db.query(User).filter(User.user_id == user_id).first()

@@ -200,7 +200,7 @@ def list_jobs_by_id(db: Session, job_id: int, user_email: str, page: int = 1, pa
             joinedload(ModificationAction.product),
             joinedload(ModificationAction.cpl_item)
         )
-        .order_by(ModificationAction.created_time.asc())
+        .order_by(ModificationAction.created_time.desc())
         .offset(offset)
         .limit(page_size)
         .all()
