@@ -12,3 +12,4 @@ from .role import Role
 from .status import Status
 from .template_documents import TemplateDocument
 from .users import User
+from .negotiators import Negotiator

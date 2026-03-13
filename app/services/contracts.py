@@ -27,6 +27,8 @@ def get_all_client_contracts(db: Session) -> list[ClientContractRead]:
             "expedited_delivery_time" : c.expedited_delivery_time,
             "fob_term" : c.fob_term,
             "energy_star_compliance" : c.energy_star_compliance,
+            "epa_method_mechanism" : c.epa_method_mechanism,
+            "is_hazardous" : c.is_hazardous,
             "is_deleted" : c.is_deleted or False,
             "created_time" : c.created_time,
             "updated_time" : c.updated_time
@@ -53,6 +55,8 @@ def _serialize_contract(c: ClientContracts) -> ClientContractRead:
         "expedited_delivery_time" : c.expedited_delivery_time,
         "fob_term" : c.fob_term,
         "energy_star_compliance" : c.energy_star_compliance,
+        "epa_method_mechanism" : c.epa_method_mechanism,
+        "is_hazardous" : c.is_hazardous,
         "is_deleted" : c.is_deleted or False,
         "created_time" : c.created_time,
         "updated_time" : c.updated_time
@@ -101,6 +105,8 @@ def create_contract_by_client_id(
         expedited_delivery_time=payload.expedited_delivery_time,
         fob_term=payload.fob_term,
         energy_star_compliance=payload.energy_star_compliance,
+        epa_method_mechanism=payload.epa_method_mechanism,
+        is_hazardous=payload.is_hazardous,
     )
 
     db.add(contract)
@@ -159,6 +165,9 @@ def update_contract_by_client_id(
     contract.expedited_delivery_time = payload.expedited_delivery_time
     contract.fob_term = payload.fob_term
     contract.energy_star_compliance = payload.energy_star_compliance
+    contract.epa_method_mechanism = payload.epa_method_mechanism
+    if payload.is_hazardous is not None:
+        contract.is_hazardous = payload.is_hazardous
 
     db.commit()
     db.refresh(contract)

@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 from sqlalchemy import select, update
@@ -31,7 +33,7 @@ def upload_products(db: Session, client_id: int, file, user_email: str):
         raise HTTPException(status_code=404, detail="No Contract Found")
 
     file.file.seek(0)
-    wb = load_workbook(file.file, read_only=True, data_only=True)
+    wb = load_workbook(BytesIO(file.file.read()), read_only=True, data_only=True)
 
     SHEET_NAME = "PRODUCTS"
     if SHEET_NAME not in wb.sheetnames:

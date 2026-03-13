@@ -11,6 +11,34 @@ def empty_str_to_none(v):
     return v
  
  
+class NegotiatorBase(ORMBase):
+    name: str
+    title: str
+    email: Optional[EmailStr] = None
+    phone_no: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+
+class NegotiatorCreate(NegotiatorBase):
+    pass
+
+class NegotiatorRead(NegotiatorBase):
+    negotiator_id: int
+    client_id: int
+
+class NegotiatorUpdate(ORMBase):
+    name: Optional[str] = None
+    title: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_no: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+
+
 class ClientProfileBase(ORMBase):
     company_name: str
     company_email: EmailStr
@@ -20,18 +48,12 @@ class ClientProfileBase(ORMBase):
     company_state: str
     company_zip: str
 
-    contact_officer_name: Optional[str] = None
-    contact_officer_email: Optional[EmailStr] = None
-    contact_officer_phone_no: Optional[str] = None
-    contact_officer_address: Optional[str] = None
-    contact_officer_city: Optional[str] = None
-    contact_officer_state: Optional[str] = None
-    contact_officer_zip: Optional[str] = None
+    negotiators: list[NegotiatorRead] = []
     
     company_logo_url: Optional[str] = None
 
     @field_validator(
-        "contact_officer_email",
+        "company_email",
         mode="before",
     )
     @classmethod
@@ -41,6 +63,7 @@ class ClientProfileBase(ORMBase):
  
 class ClientProfileCreate(ClientProfileBase):
     status: str
+    negotiators: list[NegotiatorCreate] = []
 
  
 class ClientProfileRead(ClientProfileBase):
@@ -70,13 +93,7 @@ class ClientProfileUpdate(ORMBase):
     company_state: Optional[str] = None
     company_zip: Optional[str] = None
  
-    contact_officer_name: Optional[str] = None
-    contact_officer_email: Optional[EmailStr] = None
-    contact_officer_phone_no: Optional[str] = None
-    contact_officer_address: Optional[str] = None
-    contact_officer_city: Optional[str] = None
-    contact_officer_state: Optional[str] = None
-    contact_officer_zip: Optional[str] = None
+    negotiators: Optional[list[NegotiatorUpdate]] = None
     is_deleted: Optional[bool] = False
     status: Optional[str] = None
     company_logo_url: Optional[str] = None
@@ -89,13 +106,6 @@ class ClientProfileUpdate(ORMBase):
         "company_city",
         "company_state",
         "company_zip",
-        "contact_officer_name",
-        "contact_officer_email",
-        "contact_officer_phone_no",
-        "contact_officer_address",
-        "contact_officer_city",
-        "contact_officer_state",
-        "contact_officer_zip",
         "company_logo_url",
         mode="before",
     )

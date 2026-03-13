@@ -23,6 +23,8 @@ class ClientContractCreate(ORMBase):
 
     fob_term: Optional[str] = None
     energy_star_compliance: Optional[str] = None
+    epa_method_mechanism: Optional[str] = None
+    is_hazardous: bool = False
 
 class ClientContractUpdate(ORMBase):
     contract_number: Optional[str] = None
@@ -44,6 +46,8 @@ class ClientContractUpdate(ORMBase):
 
     fob_term: Optional[str] = None
     energy_star_compliance: Optional[str] = None
+    epa_method_mechanism: Optional[str] = None
+    is_hazardous: Optional[bool] = None
 
     is_deleted: Optional[bool] = None
 
@@ -65,6 +69,8 @@ class ClientContractRead(ORMBase):
     expedited_delivery_time: Optional[int] = None
     fob_term: Optional[str] = None
     energy_star_compliance: Optional[str] = None
+    epa_method_mechanism: Optional[str] = None
+    is_hazardous: bool = False
 
     is_deleted: bool
     created_time: datetime

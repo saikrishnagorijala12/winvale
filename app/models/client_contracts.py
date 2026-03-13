@@ -39,6 +39,8 @@ class ClientContracts(Base):
 
     fob_term = Column(String(50))
     energy_star_compliance = Column(String(50))
+    epa_method_mechanism = Column(String(255))
+    is_hazardous = Column(Boolean, nullable=False, default=False)
 
     client_id = Column(
         Integer,

@@ -49,11 +49,26 @@ def gsa_upload(file,filename,type):
         file.file.close()
 
 
+def generate_presigned_url(s3_key: str, expiration: int = 3600):
+    """Generate a pre-signed URL to share an S3 object."""
+    try:
+        response = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": settings.S3_BUCKET_NAME, "Key": s3_key},
+            ExpiresIn=expiration,
+        )
+    except ClientError as e:
+        print(f"Error generating presigned URL: {e}")
+        return None
+
+    return response
+
+
 def clean(value: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]", "_", value.strip())
 
 
-def save_uploaded_file(db: Session, client_id: int, file, user_email: str, type):
+def save_uploaded_file(db: Session, client_id: int, file, user_email: str, type, job_id: int = None):
     client = db.query(ClientProfile).filter_by(client_id=client_id).first()
     user = db.query(User).filter_by(email=user_email).first()
 
@@ -74,8 +89,10 @@ def save_uploaded_file(db: Session, client_id: int, file, user_email: str, type)
             user_id=user.user_id,
             uploaded_by=user.user_id,
             client_id=client_id,
+            job_id=job_id,
             original_filename=file.filename,
             s3_saved_filename=filename,
+            notes=type,
             s3_saved_path=result["url"],
             file_size=result["size"],
         )

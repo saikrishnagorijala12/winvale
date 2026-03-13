@@ -13,6 +13,7 @@ import os
 from datetime import datetime, timezone
 from app.utils.s3_upload import gsa_upload, clean
 from .contracts import _serialize_contract
+from app.models.negotiators import Negotiator
  
 class ClientAlreadyExistsError(Exception):
     pass
@@ -33,13 +34,20 @@ def serialize_client(c: ClientProfile) -> ClientProfileRead:
         "company_state": c.company_state,
         "company_zip": c.company_zip,
 
-        "contact_officer_name": c.contact_officer_name,
-        "contact_officer_email": c.contact_officer_email,
-        "contact_officer_phone_no": c.contact_officer_phone_no,
-        "contact_officer_address": c.contact_officer_address,
-        "contact_officer_city": c.contact_officer_city,
-        "contact_officer_state": c.contact_officer_state,
-        "contact_officer_zip": c.contact_officer_zip,
+        "negotiators": [
+            {
+                "negotiator_id": n.negotiator_id,
+                "client_id": n.client_id,
+                "name": n.name,
+                "title": n.title,
+                "email": n.email,
+                "phone_no": n.phone_no,
+                "address": n.address,
+                "city": n.city,
+                "state": n.state,
+                "zip": n.zip
+            } for n in c.negotiators
+        ],
 
         "is_deleted": c.is_deleted,
         "status": c.status.status,
@@ -70,7 +78,7 @@ def get_all_clients(
         search_filter = or_(
             ClientProfile.company_name.ilike(f"%{search}%"),
             ClientProfile.company_email.ilike(f"%{search}%"),
-            ClientProfile.contact_officer_name.ilike(f"%{search}%"),
+            ClientProfile.negotiators.any(Negotiator.name.ilike(f"%{search}%")),
             ClientProfile.contracts.has(ClientContracts.contract_number.ilike(f"%{search}%"))
         )
         query = query.filter(search_filter)
@@ -177,16 +185,6 @@ def create_client_profile(db: Session, payload: ClientProfileCreate, current_use
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Company Phone already exsits"
             )
-    if payload.contact_officer_email is not None and db.query(ClientProfile).filter(ClientProfile.contact_officer_email == payload.contact_officer_email).first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Contact Officer Email already exsits"
-            )
-    if payload.contact_officer_phone_no is not None and db.query(ClientProfile).filter(ClientProfile.contact_officer_phone_no == payload.contact_officer_phone_no).first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Contact Officer Phone already exsits"
-            )
 
 
 
@@ -206,11 +204,18 @@ def create_client_profile(db: Session, payload: ClientProfileCreate, current_use
 
     data = payload.model_dump()
     status_value = data.pop("status")
+    negotiators_data = data.pop("negotiators", [])
 
     client = ClientProfile(**data)
     client.status_id = get_status_id_by_name(db, status_value)
 
     db.add(client)
+    db.flush()
+
+    for n_data in negotiators_data:
+        negotiator = Negotiator(**n_data, client_id=client.client_id)
+        db.add(negotiator)
+
     db.commit()
     db.refresh(client)
     return serialize_client(client)
@@ -267,39 +272,17 @@ def update_client(
                 detail="Company phone number is already in use by another client",
             )
 
-    if update_data.get("contact_officer_email") is not None:
-        dup = (
-            db.query(ClientProfile)
-            .filter(
-                ClientProfile.contact_officer_email == update_data["contact_officer_email"],
-                ClientProfile.client_id != client_id,
-            )
-            .first()
-        )
-        if dup:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Contact officer email is already in use by another client",
-            )
-
-    if update_data.get("contact_officer_phone_no") is not None:
-        dup = (
-            db.query(ClientProfile)
-            .filter(
-                ClientProfile.contact_officer_phone_no == update_data["contact_officer_phone_no"],
-                ClientProfile.client_id != client_id,
-            )
-            .first()
-        )
-        if dup:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Contact officer phone number is already in use by another client",
-            )
     # -----------------------------------------------------------------
 
     if "status" in update_data:
         client.status_id = get_status_id_by_name(db, update_data.pop("status"))
+
+    if "negotiators" in update_data:
+        negotiators_data = update_data.pop("negotiators")
+        db.query(Negotiator).filter(Negotiator.client_id == client_id).delete()
+        for n_data in negotiators_data:
+            negotiator = Negotiator(**n_data, client_id=client_id)
+            db.add(negotiator)
 
     for field, value in update_data.items():
         setattr(client, field, value)

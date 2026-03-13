@@ -103,9 +103,9 @@ def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDe
             "logo": job.client.company_logo_url if job.client else None,
         },
  
-        "negotiator": {
-            "name": job.client.contact_officer_name if job.client else None
-        },
+        "negotiators": [
+            {"name": n.name, "title": n.title} for n in job.client.negotiators
+        ] if job.client else [],
  
         "client_contract": None if not contract else {
             "contract_officer_name": contract.contract_officer_name,
@@ -127,7 +127,9 @@ def get_job_full_details(db: Session, job_id: int, user_email: str) -> JobFullDe
             "other": {
                 "fob_term": contract.fob_term,
                 "energy_star_compliance": contract.energy_star_compliance,
-                "additional_concessions": contract.additional_concessions
+                "additional_concessions": contract.additional_concessions,
+                "epa_method_mechanism": contract.epa_method_mechanism,
+                "is_hazardous": contract.is_hazardous
             }
         },
  

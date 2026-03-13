@@ -284,7 +284,7 @@ def upload_cpl_service(
 
     db.commit()
 
-    s3.save_uploaded_file(db, client_id, file, user_email, "cpl_upload")
+    s3.save_uploaded_file(db, client_id, file, user_email, "cpl_upload", job_id)
 
     return CPLUploadResponse.model_validate({
         "job_id": job_id,

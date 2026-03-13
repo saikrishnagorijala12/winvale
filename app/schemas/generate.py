@@ -7,7 +7,8 @@ class ClientInfo(ORMBase):
     logo: Optional[str] = None
 
 class NegotiatorInfo(ORMBase):
-    name: Optional[str] = None
+    name: str
+    title: str
 
 class DiscountInfo(ORMBase):
     gsa_proposed_discount: Optional[float] = None
@@ -35,6 +36,8 @@ class ClientContractInfo(ORMBase):
     delivery: DeliveryInfo
     address: AddressInfo
     other: OtherContractInfo
+    epa_method_mechanism: Optional[str] = None
+    is_hazardous: bool = False
 
 class ModificationSummary(ORMBase):
     products_added: int
@@ -52,10 +55,14 @@ class Percentage(ORMBase):
     price_increase: PriceRange
     price_decrease: PriceRange
 
+class NegotiatorInfo(ORMBase):
+    name: str
+    title: str
+
 class JobFullDetailsRead(ORMBase):
     job_id: int
     client: ClientInfo
-    negotiator: NegotiatorInfo
+    negotiators: list[NegotiatorInfo]
     client_contract: Optional[ClientContractInfo] = None
     modification_summary: ModificationSummary
     sin_groups_by_action: Dict[str, List[str]]

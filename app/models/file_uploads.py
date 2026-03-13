@@ -53,5 +53,12 @@ class FileUpload(Base):
         onupdate=text("CURRENT_TIMESTAMP")
     )
 
+    job_id = Column(
+        Integer,
+        ForeignKey("dev.jobs.job_id", ondelete="SET NULL"),
+        nullable=True
+    )
+
     user = relationship("User", back_populates="uploads", foreign_keys=[user_id])
     client = relationship("ClientProfile", back_populates="uploads")
+    job = relationship("Job")

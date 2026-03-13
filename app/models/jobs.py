@@ -48,3 +48,4 @@ class Job(Base):
         back_populates="job",
         cascade="all, delete-orphan"
     )
+    uploads = relationship("FileUpload", back_populates="job")

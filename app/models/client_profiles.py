@@ -28,22 +28,15 @@ class ClientProfile(Base):
 
 
 
-    contact_officer_name = Column(String(30))
-    contact_officer_email = Column(String(50), unique=True)
-    contact_officer_phone_no = Column(String(15), unique=True)
-    contact_officer_address = Column(String(50))
-    contact_officer_city = Column(String(50))
-    contact_officer_state = Column(String(50))
-    contact_officer_zip = Column(String(7))
-
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    company_logo_url = Column(String(350))
 
     status_id = Column(
         Integer,
         ForeignKey("dev.status.status_id", ondelete="RESTRICT"),
         nullable=False
     )
-    is_deleted = Column(Boolean, nullable=False, default=False)
-    company_logo_url = Column(String(350))
+    negotiators = relationship("Negotiator", back_populates="client", cascade="all, delete-orphan")
 
 
     created_time = Column(
