@@ -29,6 +29,7 @@ def get_all_client_contracts(db: Session) -> list[ClientContractRead]:
             "energy_star_compliance" : c.energy_star_compliance,
             "epa_method_mechanism" : c.epa_method_mechanism,
             "is_hazardous" : c.is_hazardous,
+            "is_tdr" : c.is_tdr,
             "is_deleted" : c.is_deleted or False,
             "created_time" : c.created_time,
             "updated_time" : c.updated_time
@@ -57,6 +58,7 @@ def _serialize_contract(c: ClientContracts) -> ClientContractRead:
         "energy_star_compliance" : c.energy_star_compliance,
         "epa_method_mechanism" : c.epa_method_mechanism,
         "is_hazardous" : c.is_hazardous,
+        "is_tdr" : c.is_tdr,
         "is_deleted" : c.is_deleted or False,
         "created_time" : c.created_time,
         "updated_time" : c.updated_time
@@ -107,6 +109,7 @@ def create_contract_by_client_id(
         energy_star_compliance=payload.energy_star_compliance,
         epa_method_mechanism=payload.epa_method_mechanism,
         is_hazardous=payload.is_hazardous,
+        is_tdr=payload.is_tdr,
     )
 
     db.add(contract)
@@ -168,6 +171,8 @@ def update_contract_by_client_id(
     contract.epa_method_mechanism = payload.epa_method_mechanism
     if payload.is_hazardous is not None:
         contract.is_hazardous = payload.is_hazardous
+    if payload.is_tdr is not None:
+        contract.is_tdr = payload.is_tdr
 
     db.commit()
     db.refresh(contract)

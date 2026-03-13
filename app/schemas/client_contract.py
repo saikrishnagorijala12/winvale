@@ -25,6 +25,7 @@ class ClientContractCreate(ORMBase):
     energy_star_compliance: Optional[str] = None
     epa_method_mechanism: Optional[str] = None
     is_hazardous: bool = False
+    is_tdr: bool = False
 
 class ClientContractUpdate(ORMBase):
     contract_number: Optional[str] = None
@@ -48,6 +49,7 @@ class ClientContractUpdate(ORMBase):
     energy_star_compliance: Optional[str] = None
     epa_method_mechanism: Optional[str] = None
     is_hazardous: Optional[bool] = None
+    is_tdr: Optional[bool] = None
 
     is_deleted: Optional[bool] = None
 
@@ -71,6 +73,7 @@ class ClientContractRead(ORMBase):
     energy_star_compliance: Optional[str] = None
     epa_method_mechanism: Optional[str] = None
     is_hazardous: bool = False
+    is_tdr: bool = False
 
     is_deleted: bool
     created_time: datetime
