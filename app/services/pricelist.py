@@ -1,0 +1,313 @@
+from io import BytesIO
+import pandas as pd
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from app.models import (
+    User,
+    ProductMaster,
+    CPLList,
+    ModificationAction,
+)
+from app.schemas.pricelist import CPLUploadResponse
+from app.services.jobs import create_job
+from app.utils import s3_upload as s3
+from app.utils.pricelist import (
+    normalize_headers,
+    find_header_row,
+    product_identity,
+    parse_price,
+    clean,
+    normalize_upper,
+    safe_compare,
+)
+
+
+def upload_cpl_service(
+    db: Session,
+    client_id: int,
+    files: list,
+    user_email: str,
+) -> CPLUploadResponse:
+
+    user = db.query(User).filter_by(email=user_email).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid user")
+
+    required_cols = {
+        "part_number",
+        "product_description",
+        "commercial_list_price_(gv)",
+    }
+
+    dataframes = []
+
+    for file in files:
+        raw_df = pd.read_excel(BytesIO(file.file.read()), header=None)
+        
+        header_row = find_header_row(raw_df)
+        if header_row == -1:
+             raise HTTPException(
+                status_code=400,
+                detail=f"Could not detect header row in file: {file.filename}"
+             )
+
+        df = raw_df.iloc[header_row + 1:].copy()
+        df.columns = raw_df.iloc[header_row]
+        df.reset_index(drop=True, inplace=True)
+
+        df = normalize_headers(df)
+
+        missing = required_cols - set(df.columns)
+
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {file.filename} is missing required columns: {', '.join(missing)}"
+            )
+        
+        dataframes.append(df)
+
+    if not dataframes:
+         raise HTTPException(status_code=400, detail="No readable data found in the uploaded files")
+
+    # Combine all valid dataframes
+    df = pd.concat(dataframes, ignore_index=True)
+    
+    job = create_job(db, client_id, user_email)
+    job_id = job.job_id
+
+    cpl_map = {}
+
+    products = (
+            db.query(ProductMaster)
+            .filter_by(client_id=client_id, is_deleted=False)
+            .all()
+        )
+
+    product_map = {}
+    part_number_map = {}
+
+    for p in products:
+        key = product_identity(
+            p.manufacturer,
+            p.manufacturer_part_number,
+        )
+        if key:
+            product_map[key] = p
+        
+        # Part number map for fallback
+        pn_key = normalize_upper(p.manufacturer_part_number)
+        if pn_key:
+            part_number_map[pn_key] = p
+
+    for row in df.to_dict("records"):
+        mfr_name = normalize_upper(row.get("manufacturer"))
+        part_number = clean(row.get("part_number"))
+        
+        if not part_number:
+            continue
+            
+        pn_key = normalize_upper(part_number)
+        
+        # Fallback for missing manufacturer
+        if not mfr_name:
+            matching_product = part_number_map.get(pn_key)
+            if matching_product:
+                mfr_name = normalize_upper(matching_product.manufacturer)
+
+        key = product_identity(mfr_name, part_number)
+
+        if not key:
+            continue
+                
+        product = product_map.get(key)
+        price = parse_price(row.get("commercial_list_price_(gv)"))
+        desc = clean(row.get("product_description"))
+        coo = normalize_upper(row.get("country_of_origin_(coo)"))
+
+        name = clean(row.get("product_name"))
+        if not name and product:
+            name = product.item_name
+
+        cpl = CPLList(
+            client_id=client_id,
+            manufacturer_name=mfr_name,
+            manufacturer_part_number=part_number,
+            item_name=name,
+            item_description=desc,
+            commercial_list_price=price,
+            origin_country=coo,
+            uploaded_by=user.user_id,
+        )
+
+        db.add(cpl)
+
+        cpl_map[key] = {
+            "cpl": cpl,
+            "price": price,
+            "description": desc,
+            "name": name,
+        }
+
+    db.flush()
+
+    summary = {
+        "new_products": 0,
+        "removed_products": 0,
+        "price_increase": 0,
+        "price_decrease": 0,
+        "description_changed": 0,
+        "name_changed": 0,
+        "no_change": 0,
+    }
+
+    processed_keys = set()
+
+    for key, cpl_data in cpl_map.items():
+
+        cpl = cpl_data["cpl"]
+        product = product_map.get(key)
+
+        if not product:
+
+            summary["new_products"] += 1
+
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=None,
+                    action_type="NEW_PRODUCT",
+                    old_price=None,
+                    new_price=cpl_data["price"],
+                    old_description=None,
+                    new_description=cpl_data["description"],
+                    old_name=None,
+                    new_name=cpl_data["name"],
+                    number_of_items_impacted=1,
+                )
+            )
+
+            continue
+
+        processed_keys.add(key)
+
+        old_price = product.commercial_price
+        new_price = cpl_data["price"]
+
+        old_desc = product.item_description
+        new_desc = cpl_data["description"]
+
+        old_name = product.item_name
+        new_name = cpl_data["name"]
+
+        price_changed = old_price != new_price
+        desc_changed = safe_compare(old_desc, new_desc)
+        name_changed = safe_compare(old_name, new_name)
+
+        actions_created = False
+
+        if price_changed:
+            if old_price is None or (new_price is not None and new_price > old_price):
+                action_type = "PRICE_INCREASE"
+                summary["price_increase"] += 1
+            else:
+                action_type = "PRICE_DECREASE"
+                summary["price_decrease"] += 1
+
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=product.product_id,
+                    action_type=action_type,
+                    old_price=old_price,
+                    new_price=new_price,
+                    number_of_items_impacted=1,
+                )
+            )
+            actions_created = True
+
+
+        if desc_changed:
+            summary["description_changed"] += 1
+
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=product.product_id,
+                    action_type="DESCRIPTION_CHANGE",
+                    old_description=old_desc,
+                    new_description=new_desc,
+                    number_of_items_impacted=1,
+                )
+            )
+            actions_created = True
+
+
+        if name_changed:
+            summary["name_changed"] += 1
+
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=product.product_id,
+                    action_type="NAME_CHANGE",
+                    old_name=old_name,
+                    new_name=new_name,
+                    number_of_items_impacted=1,
+                )
+            )
+            actions_created = True
+
+
+        if not actions_created:
+            summary["no_change"] += 1
+
+    for key, product in product_map.items():
+
+        if key not in processed_keys:
+
+            summary["removed_products"] += 1
+
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=None,
+                    product_id=product.product_id,
+                    action_type="REMOVED_PRODUCT",
+                    old_price=product.commercial_price,
+                    new_price=None,
+                    old_description=product.item_description,
+                    new_description=None,
+                    old_name=product.item_name,
+                    new_name=None,
+                    number_of_items_impacted=1,
+                )
+            )
+
+    db.commit()
+
+    for file in files:
+        file.file.seek(0)
+        s3.save_uploaded_file(db, client_id, file, user_email, "cpl_upload", job_id)
+
+    return CPLUploadResponse.model_validate({
+        "job_id": job_id,
+        "client_id": client_id,
+        "status": "pending",
+        "summary": summary,
+        "next_step": "Approve or reject job",
+    })

@@ -1,0 +1,29 @@
+services:
+  redis:
+    image: redis:7
+    container_name: winvale-redis
+    env_file:
+      - .env.docker
+    ports:
+      - "6379:6379"
+    networks:
+      - winvale-net
+    restart: always
+
+  backend:
+    build: .
+    container_name: winvale-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+      - .env.docker
+    depends_on:
+      - redis
+    networks:
+      - winvale-net
+    restart: always
+
+networks:
+  winvale-net:
+    driver: bridge

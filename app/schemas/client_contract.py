@@ -1,0 +1,80 @@
+from datetime import datetime
+from typing import Optional
+from .base import ORMBase
+
+
+class ClientContractCreate(ORMBase):
+    contract_number: str
+
+    contract_officer_name: Optional[str] = None
+    contract_officer_address: Optional[str] = None
+    contract_officer_city: Optional[str] = None
+    contract_officer_state: Optional[str] = None
+    contract_officer_zip: Optional[str] = None
+
+    origin_country: Optional[str] = None
+
+    gsa_proposed_discount: Optional[float] = None
+    q_v_discount: Optional[str] = None
+    additional_concessions: Optional[str] = None
+
+    normal_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[int] = None
+
+    fob_term: Optional[str] = None
+    energy_star_compliance: Optional[str] = None
+    epa_method_mechanism: Optional[str] = None
+    is_hazardous: bool = False
+    is_tdr: bool = False
+
+class ClientContractUpdate(ORMBase):
+    contract_number: Optional[str] = None
+
+    contract_officer_name: Optional[str] = None
+    contract_officer_address: Optional[str] = None
+    contract_officer_city: Optional[str] = None
+    contract_officer_state: Optional[str] = None
+    contract_officer_zip: Optional[str] = None
+
+    origin_country: Optional[str] = None
+
+    gsa_proposed_discount: Optional[float] = None
+    q_v_discount: Optional[str] = None
+    additional_concessions: Optional[str] = None
+
+    normal_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[int] = None
+
+    fob_term: Optional[str] = None
+    energy_star_compliance: Optional[str] = None
+    epa_method_mechanism: Optional[str] = None
+    is_hazardous: Optional[bool] = None
+    is_tdr: Optional[bool] = None
+
+    is_deleted: Optional[bool] = None
+
+class ClientContractRead(ORMBase):
+    client_id: int
+    client: Optional[str] = None
+    contract_number: str
+    contract_officer_name: Optional[str] = None
+    contract_officer_address: Optional[str] = None
+    contract_officer_city: Optional[str] = None
+    contract_officer_state: Optional[str] = None
+    contract_officer_zip: Optional[str] = None
+
+    origin_country: Optional[str] = None
+    gsa_proposed_discount: Optional[float] = None
+    q_v_discount: Optional[str] = None
+    additional_concessions: Optional[str] = None
+    normal_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[int] = None
+    fob_term: Optional[str] = None
+    energy_star_compliance: Optional[str] = None
+    epa_method_mechanism: Optional[str] = None
+    is_hazardous: bool = False
+    is_tdr: bool = False
+
+    is_deleted: bool
+    created_time: datetime
+    updated_time: datetime
