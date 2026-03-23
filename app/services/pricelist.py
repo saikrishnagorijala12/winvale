@@ -35,7 +35,6 @@ def upload_cpl_service(
 
     required_cols = {
         "part_number",
-        "product_description",
         "commercial_list_price_(gv)",
     }
 

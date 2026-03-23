@@ -171,7 +171,7 @@ def find_header_row(df: pd.DataFrame) -> int:
 
         matches = set(row.values) & ALIAS_SET
 
-        if len(matches) >= 3:
+        if len(matches) >= 2:
             return i
 
     raise HTTPException(
