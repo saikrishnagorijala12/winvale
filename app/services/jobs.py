@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 from collections import Counter, defaultdict
 from app.models import (
@@ -74,7 +74,8 @@ def list_jobs(
         base_query = base_query.filter(Job.created_time >= date_from)
 
     if date_to:
-        base_query = base_query.filter(Job.created_time <= date_to)
+        date_to = date_to + timedelta(days=1)
+        base_query = base_query.filter(Job.created_time < date_to)
 
     if search:
         term = f"%{search}%"
