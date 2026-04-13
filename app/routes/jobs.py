@@ -1,24 +1,33 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
-from app.database import get_db
+
 from app.auth.dependencies import get_current_user
+from app.database import get_db
+from app.models.jobs import Job
+from app.redis_client import redis_client
 from app.services import jobs as j
 from app.utils.cache import cache_get_or_set, invalidate_keys, invalidate_pattern
-from app.redis_client import redis_client
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 300
 
 
 def _invalidate_job_cache(job_id: int | None = None):
     invalidate_keys(redis_client, "jobs:all")
-    # Wipe all paginated/filtered list cache entries
     invalidate_pattern(redis_client, "jobs:list:*")
     if job_id is not None:
-        # Wipe all paginated/filtered job details cache entries
         invalidate_pattern(redis_client, f"jobs:id:{job_id}*")
+        invalidate_keys(redis_client, f"generate:job:{job_id}")
+
+
+def _invalidate_product_and_client_cache(client_id: int):
+    invalidate_pattern(redis_client, "products:all:*")
+    invalidate_pattern(redis_client, f"products:client:{client_id}:*")
+    invalidate_pattern(redis_client, "clients:all:*")
+    invalidate_keys(redis_client, "clients:approved", f"clients:id:{client_id}")
 
 
 @router.post("/{client_id}")
@@ -70,6 +79,7 @@ def list_jobs(
         ),
     )
 
+
 @router.get("/{job_id}")
 def list_jobs_by_id(
     job_id: int,
@@ -86,30 +96,19 @@ def list_jobs_by_id(
         CACHE_TTL,
         lambda: j.list_jobs_by_id(db, job_id, current_user["email"], page, page_size, action_type),
     )
-# @router.get("/{job_id}")
-# def list_jobs_by_id(
-#     job_id: int,
-#     page: int = 1,
-#     page_size: int = 50,
-#     current_user=Depends(get_current_user),
-#     db: Session = Depends(get_db),
-# ):
-#     cache_key = f"jobs:id:{job_id}:page={page}:size={page_size}"
-#     return cache_get_or_set(
-#         redis_client,
-#         cache_key,
-#         CACHE_TTL,
-#         lambda: j.list_jobs_by_id(db, job_id, current_user["email"], page, page_size),
-#     )
 
 
 @router.post("/{job_id}/status")
 def update_job_status(
     job_id: int,
-    action: str = Query(..., regex="^(approve|reject)$"),
+    action: str = Query(..., pattern="^(approve|reject)$"),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    job = db.query(Job).filter(Job.job_id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
     if action == "approve":
         result = j.approve_job(
             db=db,
@@ -117,6 +116,7 @@ def update_job_status(
             user_email=current_user["email"],
         )
         _invalidate_job_cache(job_id)
+        _invalidate_product_and_client_cache(job.client_id)
         return result
 
     if action == "reject":

@@ -2,6 +2,37 @@ import math
 import hashlib
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import date, datetime
+import json
+from app.redis_client import redis_client
+import logging
+
+logger = logging.getLogger(__name__)
+UPLOAD_STATUS_TTL = 60 * 60 * 24
+
+def _upload_status_key(client_id: int) -> str:
+    return f"uploads:client:{client_id}:latest"
+
+
+def set_upload_status(client_id: int, payload: dict) -> None:
+    try:
+        redis_client.setex(
+            _upload_status_key(client_id),
+            UPLOAD_STATUS_TTL,
+            json.dumps(payload),
+        )
+    except Exception:
+        logger.exception("Failed to persist upload status for client_id=%s", client_id)
+
+
+def get_upload_status(client_id: int) -> dict | None:
+    try:
+        payload = redis_client.get(_upload_status_key(client_id))
+    except Exception:
+        logger.exception("Failed to read upload status for client_id=%s", client_id)
+        return None
+    if not payload:
+        return None
+    return json.loads(payload)
 
 
 STRING_FIELDS = {
@@ -114,7 +145,7 @@ MASTER_FIELDS = [
     "govt_markup_percentage",
 ]
 
-HISTORY_FIELDS = MASTER_FIELDS[:]  # exact mirror
+HISTORY_FIELDS = MASTER_FIELDS.copy()  # exact mirror
 
 DIM_FIELDS = [
     "length",

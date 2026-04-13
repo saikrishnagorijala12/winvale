@@ -16,7 +16,7 @@ class DiscountInfo(ORMBase):
 
 class DeliveryInfo(ORMBase):
     normal_delivery_time: Optional[int] = None
-    expedited_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[str] = None
 
 class AddressInfo(ORMBase):
     contract_officer_address: Optional[str] = None
@@ -30,7 +30,7 @@ class OtherContractInfo(ORMBase):
     additional_concessions: Optional[str] = None
     epa_method_mechanism: Optional[str] = None
     is_hazardous: bool = False
-    is_tdr: bool = False
+    is_tdr: bool = True
 
 class ClientContractInfo(ORMBase):
     contract_officer_name: Optional[str] = None

@@ -2,23 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.models.users import User
-from app.schemas.user import PaginatedUserRead, UserCreate, UserRead, UserUpdate
+from app.schemas.user import PaginatedUserRead, UserCreate, UserRead, UserUpdate, UserBulkStatusUpdate
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 import app.services.user as u
 from app.utils.admin_check import require_admin
-from app.utils.cache import cache_get_or_set, invalidate_keys
+from app.utils.cache import cache_get_or_set, invalidate_keys, invalidate_pattern
 from app.redis_client import redis_client
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 300
 
 
 def _invalidate_user_cache(email: str):
+    invalidate_pattern(redis_client, "users:all:*")
     invalidate_keys(
         redis_client,
-        "users:all",
         f"users:me:{email}",
         f"users:me:status:{email}",
         f"users:current:{email}",
@@ -75,7 +75,7 @@ def create_user(
             phone_no=payload.phone_no,
             role_name=payload.role_name,
         )
-        invalidate_keys(redis_client, "users:all")
+        invalidate_pattern(redis_client, "users:all:*")
         return result
 
     except u.UserAlreadyExistsError:
@@ -105,7 +105,7 @@ def update_user(
 @router.patch("/{user_id}/approve")
 def approve_or_reject_user(
     user_id: int,
-    action: str = Query(..., regex="^(approve|reject)$"),
+    action: str = Query(..., pattern="^(approve|reject)$"),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -115,12 +115,12 @@ def approve_or_reject_user(
     try:
         if action == "approve":
             u.approve_user_service(db, user_id=user_id)
-            invalidate_keys(redis_client, "users:all")
+            invalidate_pattern(redis_client, "users:all:*")
             return {"message": "User approved"}
 
         if action == "reject":
             u.reject_user_service(db, user_id=user_id)
-            invalidate_keys(redis_client, "users:all")
+            invalidate_pattern(redis_client, "users:all:*")
             return {"message": "User rejected"}
 
     except u.UserNotFoundError:
@@ -130,11 +130,34 @@ def approve_or_reject_user(
         )
 
 
+@router.patch("/bulk-approve")
+def bulk_approve_or_reject_users(
+    payload: UserBulkStatusUpdate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_admin(db, current_user["email"])
+
+    try:
+        results = u.bulk_update_user_status(
+            db=db,
+            user_ids=payload.user_ids,
+            action=payload.action,
+        )
+        invalidate_pattern(redis_client, "users:all:*")
+        return {"message": f"Successfully processed {len(results)} users", "results": results}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
 @router.get("/all", response_model=PaginatedUserRead)
 def get_all_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    status: str = Query("all"),
+    user_status: str = Query("all", alias="status"),
     search: str | None = Query(None),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -146,7 +169,7 @@ def get_all_users(
         )
 
     skip = (page - 1) * page_size
-    cache_key = f"users:all:p{page}:s{page_size}:st:{status}:q:{search or ''}"
+    cache_key = f"users:all:p{page}:s{page_size}:st:{user_status}:q:{search or ''}"
 
     return cache_get_or_set(
         redis_client,
@@ -156,7 +179,7 @@ def get_all_users(
             db=db,
             skip=skip,
             limit=page_size,
-            status=status,
+            status=user_status,
             search=search
         )
     )
@@ -169,9 +192,15 @@ def delete_user(
     db: Session = Depends(get_db),
 ):
     require_admin(db, current_user["email"])
-    result = u.delete_user(db, user_id)
-    invalidate_keys(redis_client, "users:all")
-    return result
+    try:
+        result = u.delete_user(db, user_id)
+        invalidate_pattern(redis_client, "users:all:*")
+        return result
+    except u.UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
 
 
 @router.put("/change_role/{user_id}")
@@ -182,5 +211,5 @@ def change_role(
 ):
     require_admin(db, current_user["email"])
     result = u.change_user_role(db, user_id, current_user["email"])
-    invalidate_keys(redis_client, "users:all")
+    invalidate_pattern(redis_client, "users:all:*")
     return result

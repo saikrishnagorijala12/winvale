@@ -1,3 +1,6 @@
+import logging
+from time import perf_counter
+
 # import uvicorn
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +9,7 @@ from app import create_app
 from app.config import settings
 
 app = create_app()
+logger = logging.getLogger("app.request")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,6 +18,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_request_timing(request: Request, call_next):
+    start = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = round((perf_counter() - start) * 1000, 2)
+        logger.exception(
+            "request_failed method=%s path=%s query=%s duration_ms=%s",
+            request.method,
+            request.url.path,
+            request.url.query,
+            duration_ms,
+        )
+        raise
+
+    duration_ms = round((perf_counter() - start) * 1000, 2)
+    logger.info(
+        "request_complete method=%s path=%s query=%s status_code=%s duration_ms=%s",
+        request.method,
+        request.url.path,
+        request.url.query,
+        response.status_code,
+        duration_ms,
+    )
+    return response
+
 
 # Security headers middleware
 @app.middleware("http")

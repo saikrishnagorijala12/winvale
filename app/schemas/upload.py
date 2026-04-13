@@ -46,3 +46,22 @@ class ProductUploadResponse(ORMBase):
     reactivated: int
     deleted: int
     skipped: int
+
+
+class ProductUploadStartResponse(ORMBase):
+    upload_id: str
+    status: str
+    message: str
+
+
+class ProductUploadStatusResponse(ORMBase):
+    upload_id: Optional[str] = None
+    client_id: int
+    filename: Optional[str] = None
+    status: str
+    message: Optional[str] = None
+    processed_count: Optional[int] = None
+    total_count: Optional[int] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    result: Optional[ProductUploadResponse] = None

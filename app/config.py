@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     REDIS_HOST: str = Field(default="localhost")
     REDIS_PORT: int = Field(default=6379)
     REDIS_DECODE_RESPONSES: bool = Field(default=True)
+    REDIS_SSL: bool = Field(default=True)
+    REDIS_SOCKET_CONNECT_TIMEOUT: float = Field(default=0.2)
+    REDIS_SOCKET_TIMEOUT: float = Field(default=0.2)
+    REDIS_FAILURE_BACKOFF_SECONDS: float = Field(default=30.0)
 
     # AWS/S3 Configuration
     S3_BUCKET_NAME: str = Field(default="gsa-upload-master")
@@ -42,6 +46,9 @@ class Settings(BaseSettings):
     AWS_REGION: str = Field(default="us-east-1")
     USER_POOL_ID: str = Field(default="")
     APP_CLIENT_ID: str = Field(default="")
+    COGNITO_JWKS_TIMEOUT_SECONDS: float = Field(default=2.0)
+    COGNITO_JWKS_CACHE_SECONDS: int = Field(default=3600)
+    COGNITO_JWKS_RETRY_BACKOFF_SECONDS: int = Field(default=30)
 
     # Security Configuration
     CORS_ORIGINS: Union[str, List[str]] = Field(default=["*"])

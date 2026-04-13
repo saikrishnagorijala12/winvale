@@ -1,30 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.models.jobs import Job
+from app.redis_client import redis_client
 from app.schemas.client_profile import (
     ClientListRead,
-    ClientProfileRead,
     ClientProfileCreate,
+    ClientProfileRead,
     ClientProfileUpdate,
     PaginatedClientRead,
+    ClientBulkStatusUpdate,
 )
 from app.services import clients as cps
 from app.utils.admin_check import require_admin
-from app.utils.cache import cache_get_or_set, invalidate_keys
-from app.redis_client import redis_client
+from app.utils.cache import cache_get_or_set, invalidate_keys, invalidate_pattern
 
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 300
+
+def _invalidate_job_related_cache_for_client(db: Session, client_id: int):
+    invalidate_pattern(redis_client, "jobs:list:*")
+    job_ids = (
+        db.query(Job.job_id)
+        .filter(Job.client_id == client_id)
+        .all()
+    )
+    for (job_id,) in job_ids:
+        invalidate_pattern(redis_client, f"jobs:id:{job_id}*")
+        invalidate_keys(redis_client, f"generate:job:{job_id}")
 
 
-def _invalidate_client_cache(client_id: int | None = None):
-    keys = ["clients:all", "clients:approved"]
+def _invalidate_client_cache(db: Session, client_id: int | None = None):
+    invalidate_pattern(redis_client, "clients:all:*")
+    invalidate_keys(redis_client, "clients:approved")
     if client_id is not None:
-        keys.append(f"clients:id:{client_id}")
-    invalidate_keys(redis_client, *keys)
+        invalidate_keys(redis_client, f"clients:id:{client_id}")
+        _invalidate_job_related_cache_for_client(db, client_id)
 
 
 @router.get("", response_model=PaginatedClientRead)
@@ -38,7 +52,7 @@ def get_all_clients(
 ):
     skip = (page - 1) * page_size
     cache_key = f"clients:all:p{page}:s{page_size}:st:{status}:q:{search or ''}"
-    
+
     return cache_get_or_set(
         redis_client,
         cache_key,
@@ -48,8 +62,8 @@ def get_all_clients(
             skip=skip,
             limit=page_size,
             status=status,
-            search=search
-        )
+            search=search,
+        ),
     )
 
 
@@ -92,13 +106,8 @@ def create_client(
 ):
     try:
         result = cps.create_client_profile(db, payload, current_user)
-        _invalidate_client_cache()
+        _invalidate_client_cache(db)
         return result
-    except cps.ClientAlreadyExistsError:
-        raise HTTPException(
-            status_code=409,
-            detail="Client already exists",
-        )
     except ValueError as e:
         raise HTTPException(
             status_code=400,
@@ -125,7 +134,7 @@ def update_client(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    _invalidate_client_cache(client_id)
+    _invalidate_client_cache(db, client_id)
     return client
 
 
@@ -143,24 +152,24 @@ def upload_client_logo(
             file=file,
             user_email=current_user["email"],
         )
-        _invalidate_client_cache(client_id)
+        _invalidate_client_cache(db, client_id)
         return client
     except cps.ClientNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found"
+            detail="Client not found",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail=str(e),
         )
 
 
 @router.patch("/{client_id}/approve")
 def update_client_status(
     client_id: int,
-    action: str = Query(..., regex="^(approve|reject)$"),
+    action: str = Query(..., pattern="^(approve|reject)$"),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -172,7 +181,7 @@ def update_client_status(
             client_id=client_id,
             action=action,
         )
-        _invalidate_client_cache(client_id)
+        _invalidate_client_cache(db, client_id)
         return {"message": f"Client {action}d"}
     except cps.ClientNotFoundError:
         raise HTTPException(
@@ -186,6 +195,32 @@ def update_client_status(
         )
 
 
+@router.patch("/bulk-approve")
+def bulk_update_client_status(
+    payload: ClientBulkStatusUpdate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_admin(db, current_user["email"])
+
+    try:
+        results = cps.bulk_update_client_status(
+            db=db,
+            client_ids=payload.client_ids,
+            action=payload.action,
+        )
+        # Invalidate cache for all affected clients
+        for client_id in payload.client_ids:
+            _invalidate_client_cache(db, client_id)
+            
+        return {"message": f"Successfully processed {len(results)} clients", "results": results}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
 @router.delete("/{client_id}", response_model=ClientProfileRead)
 def delete_client(
     client_id: int,
@@ -193,6 +228,12 @@ def delete_client(
     db: Session = Depends(get_db),
 ):
     # require_admin(db, current_user["email"])
-    result = cps.delete_client(db, client_id)
-    _invalidate_client_cache(client_id)
-    return result
+    try:
+        result = cps.delete_client(db, client_id)
+        _invalidate_client_cache(db, client_id)
+        return result
+    except cps.ClientNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )

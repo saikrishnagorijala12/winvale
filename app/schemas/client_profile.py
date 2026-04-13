@@ -112,4 +112,10 @@ class ClientProfileUpdate(ORMBase):
     @classmethod
     def normalize_optional_fields(cls, v):
         return empty_str_to_none(v)
+
+
+class ClientBulkStatusUpdate(ORMBase):
+    client_ids: list[int]
+    action: str
+
  

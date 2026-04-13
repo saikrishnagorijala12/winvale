@@ -174,6 +174,29 @@ def reject_user_service(db: Session, *, user_id: int) -> UserRead:
     return serialize_user(user, message="User Rejected sucessfully")
 
 
+def bulk_update_user_status(
+    db: Session,
+    *,
+    user_ids: list[int],
+    action: str,
+) -> list[UserRead]:
+    """
+    Bulk service for approve / reject users.
+    """
+    results = []
+    for user_id in user_ids:
+        try:
+            if action == "approve":
+                result = approve_user_service(db, user_id=user_id)
+            else:
+                result = reject_user_service(db, user_id=user_id)
+            results.append(result)
+        except (UserNotFoundError, HTTPException):
+            continue
+    return results
+
+
+
 DEFAULT_ROLE_NAME = "user"
 
 def get_or_create_user(

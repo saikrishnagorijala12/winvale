@@ -35,13 +35,13 @@ class ClientContracts(Base):
     additional_concessions = Column(String(50))
 
     normal_delivery_time = Column(Integer)
-    expedited_delivery_time = Column(Integer)
+    expedited_delivery_time = Column(String(100))
 
     fob_term = Column(String(50))
     energy_star_compliance = Column(String(50))
     epa_method_mechanism = Column(String(255))
     is_hazardous = Column(Boolean, nullable=False, default=False)
-    is_tdr = Column(Boolean, nullable=False, default=False)
+    is_tdr = Column(Boolean, nullable=False, default=True)
 
     client_id = Column(
         Integer,

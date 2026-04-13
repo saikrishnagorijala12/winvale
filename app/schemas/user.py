@@ -42,3 +42,7 @@ class PaginatedUserRead(ORMBase):
     users: List[UserRead]
     total_count: int
     status_counts: dict[str, int]
+
+class UserBulkStatusUpdate(ORMBase):
+    user_ids: list[int]
+    action: str

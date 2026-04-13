@@ -1,22 +1,30 @@
-from datetime import datetime
-from fastapi import HTTPException, status, UploadFile
-from sqlalchemy import or_
-from sqlalchemy.orm import Session,joinedload
-from app.models.client_profiles import ClientProfile
+import os
+from datetime import datetime, timezone
+
+from fastapi import HTTPException, UploadFile, status
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, joinedload
+
 from app.models.client_contracts import ClientContracts
+from app.models.client_profiles import ClientProfile
+from app.models.negotiators import Negotiator
 from app.models.product_master import ProductMaster
 from app.models.status import Status
 from app.models.users import User
-from app.schemas.client_profile import ClientProfileCreate, ClientProfileUpdate, ClientProfileRead, ClientListRead
+from app.schemas.client_profile import (
+    ClientListRead,
+    ClientProfileCreate,
+    ClientProfileRead,
+    ClientProfileUpdate,
+)
 from app.utils.name_to_id import get_status_id_by_name
-import os
-from datetime import datetime, timezone
-from app.utils.s3_upload import gsa_upload, clean
+from app.utils.s3_upload import clean, gsa_upload
 from .contracts import _serialize_contract
-from app.models.negotiators import Negotiator
- 
+
+
 class ClientNotFoundError(Exception):
     pass
+
 
 def serialize_client(c: ClientProfile) -> ClientProfileRead:
     data = {
@@ -29,7 +37,6 @@ def serialize_client(c: ClientProfile) -> ClientProfileRead:
         "company_city": c.company_city,
         "company_state": c.company_state,
         "company_zip": c.company_zip,
-
         "negotiators": [
             {
                 "negotiator_id": n.negotiator_id,
@@ -41,10 +48,10 @@ def serialize_client(c: ClientProfile) -> ClientProfileRead:
                 "address": n.address,
                 "city": n.city,
                 "state": n.state,
-                "zip": n.zip
-            } for n in c.negotiators
+                "zip": n.zip,
+            }
+            for n in c.negotiators
         ],
-
         "is_deleted": c.is_deleted,
         "status": c.status.status,
         "created_time": c.created_time,
@@ -54,17 +61,14 @@ def serialize_client(c: ClientProfile) -> ClientProfileRead:
     }
     return ClientProfileRead.model_validate(data)
 
- 
+
 def get_all_clients(
     db: Session,
     skip: int = 0,
     limit: int = 100,
     status: str | None = None,
-    search: str | None = None
+    search: str | None = None,
 ) -> dict:
-    from app.models.client_contracts import ClientContracts
-    from app.models.status import Status
-
     query = db.query(ClientProfile).filter(ClientProfile.is_deleted.is_(False))
 
     if status and status != "all":
@@ -75,28 +79,44 @@ def get_all_clients(
             ClientProfile.company_name.ilike(f"%{search}%"),
             ClientProfile.company_email.ilike(f"%{search}%"),
             ClientProfile.negotiators.any(Negotiator.name.ilike(f"%{search}%")),
-            ClientProfile.contracts.has(ClientContracts.contract_number.ilike(f"%{search}%"))
+            ClientProfile.contracts.has(ClientContracts.contract_number.ilike(f"%{search}%")),
         )
         query = query.filter(search_filter)
 
     total_count = query.count()
-    
+
     clients = (
-        query
-        .options(joinedload(ClientProfile.contracts))
+        query.options(joinedload(ClientProfile.contracts))
         .order_by(ClientProfile.created_time.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
 
-    product_exists_subquery = (
-        db.query(ProductMaster.client_id)
-        .filter(ProductMaster.is_deleted.is_(False))
-        .subquery()
+    page_client_ids = [c.client_id for c in clients]
+    if page_client_ids:
+        client_ids_with_products = {
+            row[0]
+            for row in db.query(ProductMaster.client_id)
+            .filter(
+                ProductMaster.is_deleted.is_(False),
+                ProductMaster.client_id.in_(page_client_ids),
+            )
+            .distinct()
+            .all()
+        }
+    else:
+        client_ids_with_products = set()
+
+    status_rows = (
+        db.query(Status.status, func.count(ClientProfile.client_id))
+        .join(ClientProfile, ClientProfile.status_id == Status.status_id)
+        .filter(ClientProfile.is_deleted.is_(False))
+        .group_by(Status.status)
+        .all()
     )
-    
-    client_ids_with_products = {row[0] for row in db.query(product_exists_subquery).all()}
+    status_map = {status_name: count for status_name, count in status_rows}
+    all_count = sum(status_map.values())
 
     result_clients = []
     for c in clients:
@@ -108,22 +128,20 @@ def get_all_clients(
         "clients": result_clients,
         "total_count": total_count,
         "status_counts": {
-            "all": db.query(ClientProfile).filter(ClientProfile.is_deleted.is_(False)).count(),
-            "pending": db.query(ClientProfile).join(ClientProfile.status).filter(ClientProfile.is_deleted.is_(False), Status.status == "pending").count(),
-            "approved": db.query(ClientProfile).join(ClientProfile.status).filter(ClientProfile.is_deleted.is_(False), Status.status == "approved").count(),
-            "rejected": db.query(ClientProfile).join(ClientProfile.status).filter(ClientProfile.is_deleted.is_(False), Status.status == "rejected").count(),
-        }
+            "all": all_count,
+            "pending": status_map.get("pending", 0),
+            "approved": status_map.get("approved", 0),
+            "rejected": status_map.get("rejected", 0),
+        },
     }
- 
-    
+
 
 def get_active_clients(db: Session) -> list[ClientListRead]:
- 
     product_exists = (
         db.query(ProductMaster.product_id)
         .filter(
             ProductMaster.client_id == ClientProfile.client_id,
-            ProductMaster.is_deleted.is_(False)
+            ProductMaster.is_deleted.is_(False),
         )
         .exists()
     )
@@ -133,30 +151,30 @@ def get_active_clients(db: Session) -> list[ClientListRead]:
         .options(joinedload(ClientProfile.status))
         .filter(
             ClientProfile.is_deleted.is_(False),
-            Status.status == "approved"
+            Status.status == "approved",
         )
         .order_by(ClientProfile.created_time.desc())
         .all()
     )
- 
+
     result = []
- 
+
     for client, has_products in clients:
         data = serialize_client(client).model_dump()
         data["has_products"] = bool(has_products)
         result.append(ClientListRead.model_validate(data))
- 
+
     return result
- 
+
+
 def get_client_by_id(db: Session, client_id: int) -> ClientProfileRead | None:
     c = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
-    
+
     if not c:
         return None
     return serialize_client(c)
 
- 
- 
+
 def create_client_profile(db: Session, payload: ClientProfileCreate, current_user) -> ClientProfileRead:
     """
     Create a client profile.
@@ -168,8 +186,8 @@ def create_client_profile(db: Session, payload: ClientProfileCreate, current_use
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized"
-            )
+            detail="Unauthorized",
+        )
 
     data = payload.model_dump()
     status_value = data.pop("status")
@@ -188,9 +206,8 @@ def create_client_profile(db: Session, payload: ClientProfileCreate, current_use
     db.commit()
     db.refresh(client)
     return serialize_client(client)
- 
- 
- 
+
+
 def update_client(
     db: Session,
     client_id: int,
@@ -199,18 +216,12 @@ def update_client(
     """
     Partial update (PATCH semantics).
     """
-    client = (
-        db.query(ClientProfile)
-        .filter(ClientProfile.client_id == client_id)
-        .first()
-    )
+    client = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
 
     if not client:
         return None
 
     update_data = data.model_dump(exclude_unset=True)
-
-
 
     if "status" in update_data:
         client.status_id = get_status_id_by_name(db, update_data.pop("status"))
@@ -231,8 +242,8 @@ def update_client(
     db.refresh(client)
 
     return serialize_client(client)
- 
- 
+
+
 def update_client_status(
     db: Session,
     *,
@@ -243,13 +254,9 @@ def update_client_status(
     Single service for approve / reject.
     Uses status table (no hard-coded IDs).
     """
- 
-    client = (
-        db.query(ClientProfile)
-        .filter(ClientProfile.client_id == client_id)
-        .first()
-    )
- 
+
+    client = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
+
     if not client:
         raise ClientNotFoundError()
 
@@ -258,23 +265,40 @@ def update_client_status(
 
     if client.status_id == target_status_id:
         return serialize_client(client)
- 
+
     if action == "approve":
-        rejected_status = (
-            db.query(Status)
-            .filter(Status.status == "rejected")
-            .first()
-        )
+        rejected_status = db.query(Status).filter(Status.status == "rejected").first()
         if rejected_status and client.status == rejected_status.status_id:
             raise ValueError("Rejected client cannot be approved")
- 
+
     client.status_id = target_status_id
     db.commit()
     db.refresh(client)
- 
+
     return serialize_client(client)
- 
-def delete_client(db: Session, client_id:int) -> ClientProfileRead:
+
+
+def bulk_update_client_status(
+    db: Session,
+    *,
+    client_ids: list[int],
+    action: str,
+) -> list[ClientProfileRead]:
+    """
+    Bulk service for approve / reject clients.
+    """
+    results = []
+    for client_id in client_ids:
+        try:
+            result = update_client_status(db, client_id=client_id, action=action)
+            results.append(result)
+        except (ClientNotFoundError, ValueError):
+            continue
+    return results
+
+
+
+def delete_client(db: Session, client_id: int) -> ClientProfileRead:
     client = db.query(ClientProfile).filter(ClientProfile.client_id == client_id).first()
     if not client:
         raise ClientNotFoundError()
@@ -298,7 +322,7 @@ def upload_company_logo(db: Session, client_id: int, file: UploadFile, user_emai
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized"
+            detail="Unauthorized",
         )
 
     _, ext = os.path.splitext(file.filename)
@@ -312,11 +336,11 @@ def upload_company_logo(db: Session, client_id: int, file: UploadFile, user_emai
     )
 
     result = gsa_upload(file, filename, "logo_upload")
-    
+
     client.company_logo_url = result["url"]
     client.updated_time = datetime.now(timezone.utc)
-    
+
     db.commit()
     db.refresh(client)
-    
+
     return serialize_client(client)

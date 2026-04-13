@@ -19,13 +19,13 @@ class ClientContractCreate(ORMBase):
     additional_concessions: Optional[str] = None
 
     normal_delivery_time: Optional[int] = None
-    expedited_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[str] = None
 
     fob_term: Optional[str] = None
     energy_star_compliance: Optional[str] = None
     epa_method_mechanism: Optional[str] = None
     is_hazardous: bool = False
-    is_tdr: bool = False
+    is_tdr: bool = True
 
 class ClientContractUpdate(ORMBase):
     contract_number: Optional[str] = None
@@ -43,7 +43,7 @@ class ClientContractUpdate(ORMBase):
     additional_concessions: Optional[str] = None
 
     normal_delivery_time: Optional[int] = None
-    expedited_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[str] = None
 
     fob_term: Optional[str] = None
     energy_star_compliance: Optional[str] = None
@@ -68,12 +68,12 @@ class ClientContractRead(ORMBase):
     q_v_discount: Optional[str] = None
     additional_concessions: Optional[str] = None
     normal_delivery_time: Optional[int] = None
-    expedited_delivery_time: Optional[int] = None
+    expedited_delivery_time: Optional[str] = None
     fob_term: Optional[str] = None
     energy_star_compliance: Optional[str] = None
     epa_method_mechanism: Optional[str] = None
     is_hazardous: bool = False
-    is_tdr: bool = False
+    is_tdr: bool = True
 
     is_deleted: bool
     created_time: datetime
