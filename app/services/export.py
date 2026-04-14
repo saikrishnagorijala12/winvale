@@ -30,6 +30,7 @@ def export_price_modifications_excel(
     ("PRICE_INCREASE", "Price Increase"),
     ("PRICE_DECREASE", "Price Decrease"),
     ("DESCRIPTION_CHANGE", "Description Changes"),
+    ("NO_CHANGE", "No Changes"),
     ]
 
     all_types = [t[0] for t in ordered_tabs]

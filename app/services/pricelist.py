@@ -272,6 +272,23 @@ def upload_cpl_service(
 
         if not actions_created:
             summary["no_change"] += 1
+            db.add(
+                ModificationAction(
+                    user_id=user.user_id,
+                    client_id=client_id,
+                    job_id=job_id,
+                    cpl_id=cpl.cpl_id,
+                    product_id=product.product_id,
+                    action_type="NO_CHANGE",
+                    old_price=product.commercial_price,
+                    new_price=cpl_data["price"],
+                    old_description=product.item_description,
+                    new_description=cpl_data["description"],
+                    old_name=product.item_name,
+                    new_name=cpl_data["name"],
+                    number_of_items_impacted=1,
+                )
+            )
 
     for key, product in product_map.items():
 
