@@ -27,8 +27,15 @@ def upload_cpl_service(
     client_id: int,
     files: list,
     user_email: str,
+    progress_callback=None,
+    job_id: int = None,
 ) -> CPLUploadResponse:
 
+    def notify(message: str, percent: int, **kwargs):
+        if progress_callback:
+            progress_callback(message=message, percent=percent, **kwargs)
+
+    notify("Reading files...", 10)
     user = db.query(User).filter_by(email=user_email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
@@ -71,12 +78,18 @@ def upload_cpl_service(
 
     # Combine all valid dataframes
     df = pd.concat(dataframes, ignore_index=True)
+    total_rows = len(df)
     
-    job = create_job(db, client_id, user_email)
-    job_id = job.job_id
+    if not job_id:
+        notify("Creating analysis job...", 20)
+        job = create_job(db, client_id, user_email)
+        job_id = job.job_id
+    else:
+        notify("Using pre-created job...", 20)
 
     cpl_map = {}
 
+    notify("Fetching product master...", 30)
     products = (
             db.query(ProductMaster)
             .filter_by(client_id=client_id, is_deleted=False)
@@ -99,7 +112,13 @@ def upload_cpl_service(
         if pn_key:
             part_number_map[pn_key] = p
 
+    notify("Processing CPL rows...", 40)
+    processed_rows = 0
     for row in df.to_dict("records"):
+        processed_rows += 1
+        if processed_rows % 500 == 0:
+            notify(f"Processing CPL rows ({processed_rows}/{total_rows})...", 40 + int(20 * processed_rows / total_rows))
+
         mfr_name = normalize_upper(row.get("manufacturer"))
         part_number = clean(row.get("part_number"))
         
@@ -161,8 +180,14 @@ def upload_cpl_service(
     }
 
     processed_keys = set()
+    total_map_keys = len(cpl_map)
+    processed_map_keys = 0
 
+    notify("Analyzing modifications...", 60)
     for key, cpl_data in cpl_map.items():
+        processed_map_keys += 1
+        if processed_map_keys % 500 == 0:
+            notify(f"Analyzing modifications ({processed_map_keys}/{total_map_keys})...", 60 + int(30 * processed_map_keys / total_map_keys))
 
         cpl = cpl_data["cpl"]
         product = product_map.get(key)
@@ -290,6 +315,7 @@ def upload_cpl_service(
                 )
             )
 
+    notify("Processing removed products...", 95)
     for key, product in product_map.items():
 
         if key not in processed_keys:
@@ -314,7 +340,10 @@ def upload_cpl_service(
                 )
             )
 
+    notify("Saving results...", 98)
     db.commit()
+
+    notify("Analysis complete", 100)
 
     for file in files:
         file.file.seek(0)

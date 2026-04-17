@@ -1,7 +1,6 @@
 import logging
 from time import perf_counter
 
-# import uvicorn
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from app import create_app
@@ -86,7 +85,3 @@ async def add_security_headers(request: Request, call_next):
 @app.get("/")
 def greet():
     return settings.APP_GREET_MESSAGE
-
-
-# if __name__ == "__main__":
-#     uvicorn.run("main:app", reload=True)

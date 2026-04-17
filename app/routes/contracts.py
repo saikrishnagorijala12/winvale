@@ -14,7 +14,7 @@ from app.services import contracts as cont
 from app.utils.admin_check import require_admin
 from app.utils.cache import cache_get_or_set, invalidate_keys, invalidate_pattern
 
-router = APIRouter(prefix="/contracts", tags=["Contrats"])
+router = APIRouter(prefix="/contracts", tags=["Contracts"])
 
 CACHE_TTL = 300  # 5 minutes
 
@@ -93,7 +93,7 @@ def create_client_contract(
         )
         _invalidate_contract_cache(db, client_id)
         return result
-    except cont.ContractAlreadyExsistsError:
+    except cont.ContractAlreadyExistsError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Contract already exist for this client",
@@ -129,7 +129,6 @@ def delete_client(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # require_admin(db, current_user["email"])
     try:
         result = cont.delete_contract(db, client_id)
         _invalidate_contract_cache(db, client_id)

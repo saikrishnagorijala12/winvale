@@ -227,7 +227,6 @@ def delete_client(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # require_admin(db, current_user["email"])
     try:
         result = cps.delete_client(db, client_id)
         _invalidate_client_cache(db, client_id)

@@ -3,7 +3,8 @@ from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, select, text
+
 from openpyxl import Workbook
 from app.models.product_master import ProductMaster
 from app.models.client_profiles import ClientProfile
@@ -23,7 +24,9 @@ def export_price_modifications_excel(
     client_id: Optional[int] = None,
     job_id: Optional[int] = None,
     selected_types: Optional[List[str]] = None,
+    progress_callback=None,
 ):
+
     ordered_tabs = [
     ("NEW_PRODUCT", "Additions"),
     ("REMOVED_PRODUCT", "Deletions"),
@@ -130,22 +133,59 @@ def export_price_modifications_excel(
         if action_type in selected_types_set:
             sheets[action_type] = create_sheet(title, action_type)
 
-    for mod in query.yield_per(500):
+    # Use Raw SQL for minimum overhead
+    sql = text("""
+        SELECT 
+            m.*,
+            p.item_type, p.manufacturer as p_mfr, p.manufacturer_part_number as p_mpn,
+            p.vendor_part_number, p.sin, p.item_name as p_name, p.item_description as p_desc,
+            p.recycled_content_percent, p.uom, p.quantity_per_pack, p.quantity_unit_uom,
+            p.mfc_name, p.mfc_price, p.govt_price_no_fee, p.govt_price_with_fee,
+            p.country_of_origin as p_coo, p.delivery_days, p.lead_time_code,
+            p.fob_us, p.fob_ak, p.fob_hi, p.fob_pr, p.nsn, p.upc, p.unspsc,
+            p.sale_price_with_fee, p.start_date, p.stop_date,
+            p.default_photo, p.photo_2, p.photo_3, p.photo_4, p.product_url,
+            p.warranty_period, p.warranty_unit_of_time,
+            p.product_info_code, p.url_508, p.hazmat,
+            p.dealer_cost, p.mfc_markup_percentage, p.govt_markup_percentage,
+            d.length, d.width, d.height, d.physical_uom, d.weight_lbs,
+            cpl.manufacturer_name as cpl_mfr, cpl.manufacturer_part_number as cpl_mpn,
+            cpl.item_name as cpl_name, cpl.item_description as cpl_desc,
+            cpl.origin_country as cpl_coo
+        FROM modification_action m
+        LEFT JOIN product_master p ON m.product_id = p.product_id
+        LEFT JOIN product_dim d ON p.product_id = d.product_id
+        LEFT JOIN cpl_list cpl ON m.cpl_id = cpl.cpl_id
+        WHERE m.action_type IN :selected_types
+        """ + (" AND m.client_id = :client_id" if client_id is not None else "") + """
+        """ + (" AND m.job_id = :job_id" if job_id is not None else "") + """
+    """)
 
-        ws = sheets.get(mod.action_type)
+    params = {
+        "selected_types": tuple(selected_types),
+        "client_id": client_id,
+        "job_id": job_id
+    }
+    
+    result = db.execute(sql, params)
+
+    row_count = 0
+    for res in result:
+        row_count += 1
+        if progress_callback and row_count % 1000 == 0:
+            progress_callback(processed=row_count)
+
+        ws = sheets.get(res.action_type)
         if not ws:
             continue
 
-        p = mod.product
-        cpl = mod.cpl_item
-        d = p.dimension if p else None
-        is_price_tab = mod.action_type in ["PRICE_INCREASE", "PRICE_DECREASE"]
+        is_price_tab = res.action_type in ["PRICE_INCREASE", "PRICE_DECREASE"]
 
         if is_price_tab:
-            old_price = float(mod.old_price) if mod.old_price is not None else None
-            new_price = float(mod.new_price) if mod.new_price is not None else None
+            old_price = float(res.old_price) if res.old_price is not None else None
+            new_price = float(res.new_price) if res.new_price is not None else None
 
-            current_row = sheet_row_counters.get(mod.action_type, 3)
+            current_row = sheet_row_counters.get(res.action_type, 3)
             formula = f"=IFERROR(ABS((M{current_row}-L{current_row})/L{current_row}),0)"
             
             perc_change_cell = WriteOnlyCell(ws, value=formula)
@@ -153,79 +193,71 @@ def export_price_modifications_excel(
 
             price_columns = [old_price, new_price, perc_change_cell]
         else:
-            price = mod.new_price if mod.new_price is not None else mod.old_price
+            price = res.new_price if res.new_price is not None else res.old_price
             price_columns = [float(price) if price is not None else None]
 
         row = [
-            p.item_type if p else None,
-            p.manufacturer if p else (cpl.manufacturer_name if cpl else None),
-            p.manufacturer_part_number if p else (cpl.manufacturer_part_number if cpl else None),
-            p.vendor_part_number if p else None,
-            p.sin if p else None,
-            p.item_name if p else (cpl.item_name if cpl else None),
-            p.item_description if p else (cpl.item_description if cpl else None),
-            float(p.recycled_content_percent) if p and p.recycled_content_percent else None,
-            p.uom if p else None,
-            p.quantity_per_pack if p else None,
-            p.quantity_unit_uom if p else None,
+            res.item_type,
+            res.p_mfr if res.p_mfr else res.cpl_mfr,
+            res.p_mpn if res.p_mpn else res.cpl_mpn,
+            res.vendor_part_number,
+            res.sin,
+            res.p_name if res.p_name else res.cpl_name,
+            res.p_desc if res.p_desc else res.cpl_desc,
+            float(res.recycled_content_percent) if res.recycled_content_percent is not None else None,
+            res.uom,
+            res.quantity_per_pack,
+            res.quantity_unit_uom,
         ] + price_columns + [
-            p.mfc_name if p else None,
-            float(p.mfc_price) if p and p.mfc_price is not None else None,
-            float(p.govt_price_no_fee) if p and p.govt_price_no_fee is not None else None,
-            float(p.govt_price_with_fee) if p and p.govt_price_with_fee is not None else None,
-            p.country_of_origin if p else (cpl.origin_country if cpl else None),
-            p.delivery_days if p else None,
-            p.lead_time_code if p else None,
-            p.fob_us if p else None,
-            p.fob_ak if p else None,
-            p.fob_hi if p else None,
-            p.fob_pr if p else None,
-            p.nsn if p else None,
-            p.upc if p else None,
-            p.unspsc if p else None,
-            float(p.sale_price_with_fee) if p and p.sale_price_with_fee is not None else None,
-            p.start_date if p else None,
-            p.stop_date if p else None,
-            p.default_photo if p else None,
-            p.photo_2 if p else None,
-            p.photo_3 if p else None,
-            p.photo_4 if p else None,
-            p.product_url if p else None,
-            p.warranty_period if p else None,
-            p.warranty_unit_of_time if p else None,
-            float(d.length) if d and d.length else None,
-            float(d.width) if d and d.width else None,
-            float(d.height) if d and d.height else None,
-            d.physical_uom if d else None,
-            float(d.weight_lbs) if d and d.weight_lbs else None,
-            p.product_info_code if p else None,
-            p.url_508 if p else None,
-            p.hazmat if p else None,
-            float(p.dealer_cost) if p and p.dealer_cost is not None else None,
-            float(p.mfc_markup_percentage) if p and p.mfc_markup_percentage is not None else None,
-            float(p.govt_markup_percentage) if p and p.govt_markup_percentage is not None else None,
+            res.mfc_name,
+            float(res.mfc_price) if res.mfc_price is not None else None,
+            float(res.govt_price_no_fee) if res.govt_price_no_fee is not None else None,
+            float(res.govt_price_with_fee) if res.govt_price_with_fee is not None else None,
+            res.p_coo if res.p_coo else res.cpl_coo,
+            res.delivery_days,
+            res.lead_time_code,
+            res.fob_us,
+            res.fob_ak,
+            res.fob_hi,
+            res.fob_pr,
+            res.nsn,
+            res.upc,
+            res.unspsc,
+            float(res.sale_price_with_fee) if res.sale_price_with_fee is not None else None,
+            res.start_date.isoformat() if res.start_date else None,
+            res.stop_date.isoformat() if res.stop_date else None,
+            res.default_photo,
+            res.photo_2,
+            res.photo_3,
+            res.photo_4,
+            res.product_url,
+            res.warranty_period,
+            res.warranty_unit_of_time,
+            float(res.length) if res.length is not None else None,
+            float(res.width) if res.width is not None else None,
+            float(res.height) if res.height is not None else None,
+            res.physical_uom,
+            float(res.weight_lbs) if res.weight_lbs is not None else None,
+            res.product_info_code,
+            res.url_508,
+            res.hazmat,
+            float(res.dealer_cost) if res.dealer_cost is not None else None,
+            float(res.mfc_markup_percentage) if res.mfc_markup_percentage is not None else None,
+            float(res.govt_markup_percentage) if res.govt_markup_percentage is not None else None,
         ]
 
         ws.append(row)
-        if mod.action_type in sheet_row_counters:
-            sheet_row_counters[mod.action_type] += 1
+        if res.action_type in sheet_row_counters:
+            sheet_row_counters[res.action_type] += 1
+
+    if progress_callback:
+        progress_callback(processed=row_count)
 
     return wb
 
 
-def export_products_excel(db, client_id: Optional[int] = None):
 
-    query = (
-        db.query(ProductMaster)
-        .options(
-            joinedload(ProductMaster.dimension),
-            joinedload(ProductMaster.client)
-        )
-        .filter(ProductMaster.is_deleted.is_(False))
-    )
-
-    if client_id is not None:
-        query = query.filter(ProductMaster.client_id == client_id)
+def export_products_excel(db, client_id: Optional[int] = None, progress_callback=None):
 
     wb = Workbook(write_only=True)
     ws = wb.create_sheet("PRODUCTS")
@@ -287,66 +319,89 @@ def export_products_excel(db, client_id: Optional[int] = None):
 
     ws.append(header_row_2)
 
-    for p in query.yield_per(500):
+    # Use Raw SQL for maximum performance with 200k+ rows
+    sql = text("""
+        SELECT 
+            p.*, 
+            d.length as dim_length, d.width as dim_width, d.height as dim_height, 
+            d.physical_uom as dim_uom, d.weight_lbs as dim_weight,
+            c.company_name as client_name
+        FROM product_master p
+        LEFT JOIN product_dim d ON p.product_id = d.product_id
+        LEFT JOIN client_profiles c ON p.client_id = c.client_id
+        WHERE p.is_deleted = false
+        """ + (" AND p.client_id = :client_id" if client_id is not None else "") + """
+    """)
+    
+    params = {"client_id": client_id} if client_id is not None else {}
+    result = db.execute(sql, params)
 
-        d = p.dimension
+    row_count = 0
+    for res in result:
+        row_count += 1
+        if progress_callback and row_count % 1000 == 0:
+            progress_callback(processed=row_count)
 
-        row = [
-            p.item_type,
-            p.manufacturer,
-            p.manufacturer_part_number,
-            p.vendor_part_number,
-            p.sin,
-            p.item_name,
-            p.item_description,
-            float(p.recycled_content_percent) if p.recycled_content_percent is not None else None,
-            p.uom,
-            p.quantity_per_pack,
-            p.quantity_unit_uom,
-            float(p.commercial_price) if p.commercial_price else None,
-            p.mfc_name,
-            float(p.mfc_price) if p.mfc_price else None,
-            float(p.govt_price_no_fee) if p.govt_price_no_fee else None,
-            float(p.govt_price_with_fee) if p.govt_price_with_fee else None,
-            p.country_of_origin,
-            p.delivery_days,
-            p.lead_time_code,
-            p.fob_us,
-            p.fob_ak,
-            p.fob_hi,
-            p.fob_pr,
-            p.nsn,
-            p.upc,
-            p.unspsc,
-            float(p.sale_price_with_fee) if p.sale_price_with_fee else None,
-            p.start_date,
-            p.stop_date,
-            p.default_photo,
-            p.photo_2,
-            p.photo_3,
-            p.photo_4,
-            p.product_url,
-            p.warranty_period,
-            p.warranty_unit_of_time,
-            float(d.length) if d and d.length is not None else None,
-            float(d.width) if d and d.width is not None else None,
-            float(d.height) if d and d.height is not None else None,
-            d.physical_uom if d else None,
-            float(d.weight_lbs) if d and d.weight_lbs is not None else None,
-            p.product_info_code,
-            p.url_508,
-            p.hazmat,
-            float(p.dealer_cost) if p.dealer_cost else None,
-            float(p.mfc_markup_percentage) if p.mfc_markup_percentage else None,
-            float(p.govt_markup_percentage) if p.govt_markup_percentage else None,
+        # Build row using raw result access
+        prefix = [res.client_name] if client_id is None else []
+        
+        row = prefix + [
+            res.item_type,
+            res.manufacturer,
+            res.manufacturer_part_number,
+            res.vendor_part_number,
+            res.sin,
+            res.item_name,
+            res.item_description,
+            float(res.recycled_content_percent) if res.recycled_content_percent is not None else None,
+            res.uom,
+            res.quantity_per_pack,
+            res.quantity_unit_uom,
+            float(res.commercial_price) if res.commercial_price else None,
+            res.mfc_name,
+            float(res.mfc_price) if res.mfc_price else None,
+            float(res.govt_price_no_fee) if res.govt_price_no_fee else None,
+            float(res.govt_price_with_fee) if res.govt_price_with_fee else None,
+            res.country_of_origin,
+            res.delivery_days,
+            res.lead_time_code,
+            res.fob_us,
+            res.fob_ak,
+            res.fob_hi,
+            res.fob_pr,
+            res.nsn,
+            res.upc,
+            res.unspsc,
+            float(res.sale_price_with_fee) if res.sale_price_with_fee else None,
+            res.start_date.isoformat() if res.start_date else None,
+            res.stop_date.isoformat() if res.stop_date else None,
+            res.default_photo,
+            res.photo_2,
+            res.photo_3,
+            res.photo_4,
+            res.product_url,
+            res.warranty_period,
+            res.warranty_unit_of_time,
+            float(res.dim_length) if res.dim_length is not None else None,
+            float(res.dim_width) if res.dim_width is not None else None,
+            float(res.dim_height) if res.dim_height is not None else None,
+            res.dim_uom,
+            float(res.dim_weight) if res.dim_weight is not None else None,
+            res.product_info_code,
+            res.url_508,
+            res.hazmat,
+            float(res.dealer_cost) if res.dealer_cost else None,
+            float(res.mfc_markup_percentage) if res.mfc_markup_percentage else None,
+            float(res.govt_markup_percentage) if res.govt_markup_percentage else None,
         ]
-
-        if client_id is None:
-            row.insert(0, p.client.company_name if p.client else None)
 
         ws.append(row)
 
+    if progress_callback:
+        progress_callback(processed=row_count)
+
     return wb
+
 
 
 def get_master_filename(db: Session, client_id: Optional[int] = None):

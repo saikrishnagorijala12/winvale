@@ -1,6 +1,7 @@
 import re
 import os
 import boto3
+import logging
 from uuid import uuid4
 from fastapi import HTTPException
 from botocore.exceptions import ClientError
@@ -10,6 +11,8 @@ from app.models.client_profiles import ClientProfile
 from app.models.users import User
 from app.models.file_uploads import FileUpload
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 s3_client = boto3.client(
     "s3",
@@ -46,23 +49,43 @@ def gsa_upload(file,filename,type):
         raise HTTPException(status_code=500, detail=f"S3 client error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
-    finally:
-        file.file.close()
-
-
-def generate_presigned_url(s3_key: str, expiration: int = 3600):
-    """Generate a pre-signed URL to share an S3 object."""
+def upload_export(file_obj, filename, content_type):
+    """
+    Uploads an export file to S3.
+    """
     try:
+        s3_key = f"exports/{filename}"
+        s3_client.upload_fileobj(
+            file_obj,
+            settings.S3_BUCKET_NAME,
+            s3_key,
+            ExtraArgs={"ContentType": content_type},
+        )
+        return s3_key
+    except Exception as e:
+        logger.error(f"Error uploading export to S3: {e}")
+        return None
+
+
+def generate_presigned_url(s3_key: str, filename: str = None, expiration: int = 3600):
+    """Generate a pre-signed URL to share an S3 object with forced download filename."""
+    try:
+        params = {"Bucket": settings.S3_BUCKET_NAME, "Key": s3_key}
+        if filename:
+            # Force browser to download with specific filename
+            params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
+
         response = s3_client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": settings.S3_BUCKET_NAME, "Key": s3_key},
+            Params=params,
             ExpiresIn=expiration,
         )
     except ClientError as e:
-        print(f"Error generating presigned URL: {e}")
+        logger.error(f"Error generating presigned URL: {e}")
         return None
 
     return response
+
 
 
 def clean(value: str) -> str:

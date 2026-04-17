@@ -22,7 +22,6 @@ HEADER_ALIASES = {
         "product_name",
         "item_name",
         "name",
-        "product_name",
     ],
 
     "product_description": [
@@ -31,7 +30,6 @@ HEADER_ALIASES = {
         "item_description",
         "short_description",
         "long_description",
-        "product_description",
     ],
 
     "commercial_list_price_(gv)": [
@@ -153,7 +151,10 @@ def clean(value):
 
 
 def safe_compare(a, b):
-    return (a or "").strip() != (b or "").strip()
+    """Returns True if the strings are meaningfully different."""
+    s1 = (str(a) if a is not None and not pd.isna(a) else "").strip()
+    s2 = (str(b) if b is not None and not pd.isna(b) else "").strip()
+    return s1 != s2
 
 
 def find_header_row(df: pd.DataFrame) -> int:

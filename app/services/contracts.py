@@ -74,7 +74,7 @@ def get_contract_by_client_id(db: Session, client_id: int) -> ClientContractRead
         return None
     return _serialize_contract(c)
 
-class ContractAlreadyExsistsError(Exception):
+class ContractAlreadyExistsError(Exception):
     pass
 
 def create_contract_by_client_id(
@@ -89,7 +89,7 @@ def create_contract_by_client_id(
         .first()
     )
     if existing:
-        raise ContractAlreadyExsistsError()
+        raise ContractAlreadyExistsError()
 
     contract = ClientContracts(
         client_id=client_id,

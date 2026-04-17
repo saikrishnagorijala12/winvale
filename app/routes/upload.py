@@ -12,6 +12,8 @@ from app.services.upload import upload_products as upload_products_service
 from app.utils.cache import invalidate_pattern, invalidate_keys
 from app.redis_client import redis_client
 from redis.exceptions import RedisError
+from fastapi.responses import StreamingResponse
+from app.utils.sse import event_generator, format_sse_event
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -53,6 +55,26 @@ def get_upload_status(
     if not status_payload:
         raise HTTPException(status_code=404, detail="No recent upload found")
     return status_payload
+
+
+@router.get("/{client_id}/events")
+async def get_upload_events(
+    client_id: int,
+    current_user=Depends(get_current_user),
+):
+    """
+    SSE endpoint for real-time upload progress updates.
+    """
+    channel = f"events:upload:{client_id}"
+    return StreamingResponse(
+        event_generator(channel),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable buffering for Nginx
+        },
+    )
 
 
 @router.post("/{client_id}/reset", status_code=status.HTTP_200_OK)
@@ -143,6 +165,12 @@ def run_upload_background(
             current_status["processed_count"] = processed_count
             current_status["total_count"] = total_count
             _set_upload_status(client_id, current_status)
+            
+            # Publish to Redis channel for SSE
+            redis_client.publish(
+                f"events:upload:{client_id}",
+                format_sse_event(current_status)
+            )
 
     try:
         result = upload_products_service(
@@ -165,6 +193,13 @@ def run_upload_background(
                 "result": result,
             },
         )
+        # Final success update
+        final_status = _get_upload_status(client_id)
+        if final_status:
+            redis_client.publish(
+                f"events:upload:{client_id}",
+                format_sse_event(final_status)
+            )
     except Exception as exc:
         logger.exception("Product upload failed for client_id=%s filename=%s", client_id, filename)
         _set_upload_status(
@@ -179,6 +214,13 @@ def run_upload_background(
                 "finished_at": datetime.now(timezone.utc).isoformat(),
             },
         )
+        # Final error update
+        final_status = _get_upload_status(client_id)
+        if final_status:
+            redis_client.publish(
+                f"events:upload:{client_id}",
+                format_sse_event(final_status)
+            )
     finally:
         if not file.file.closed:
             file.file.close()
@@ -190,3 +232,8 @@ def run_upload_background(
     invalidate_pattern(redis_client, "jobs:list:*")
     invalidate_pattern(redis_client, "clients:all:*")
     invalidate_keys(redis_client, "clients:approved", f"clients:id:{client_id}")
+    
+    # Invalidate export cache
+    redis_client.delete(f"export:cache:products:{client_id}")
+    redis_client.delete("export:cache:products:all")
+

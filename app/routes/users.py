@@ -112,6 +112,13 @@ def approve_or_reject_user(
     email = current_user["email"]
     require_admin(db, email)
 
+    active_user = u.get_current_user_by_email(db, email)
+    if active_user.user_id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Self-approval or self-rejection is not allowed",
+        )
+
     try:
         if action == "approve":
             u.approve_user_service(db, user_id=user_id)
@@ -137,11 +144,21 @@ def bulk_approve_or_reject_users(
     db: Session = Depends(get_db),
 ):
     require_admin(db, current_user["email"])
+    
+    active_user = u.get_current_user_by_email(db, current_user["email"])
+    # Filter out self-actions
+    user_ids = [uid for uid in payload.user_ids if uid != active_user.user_id]
+    
+    if not user_ids:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid user IDs provided (self-actions are excluded)",
+        )
 
     try:
         results = u.bulk_update_user_status(
             db=db,
-            user_ids=payload.user_ids,
+            user_ids=user_ids,
             action=payload.action,
         )
         invalidate_pattern(redis_client, "users:all:*")
@@ -192,6 +209,14 @@ def delete_user(
     db: Session = Depends(get_db),
 ):
     require_admin(db, current_user["email"])
+    
+    active_user = u.get_current_user_by_email(db, current_user["email"])
+    if active_user.user_id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Self-deletion is not allowed",
+        )
+
     try:
         result = u.delete_user(db, user_id)
         invalidate_pattern(redis_client, "users:all:*")

@@ -1,7 +1,8 @@
 import logging
 from time import perf_counter
 
-from fastapi import Depends, HTTPException, status
+from typing import Optional
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt
 
@@ -12,44 +13,34 @@ logger = logging.getLogger("app.auth")
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    token: Optional[str] = Query(None),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ):
+    actual_token = token if token else (credentials.credentials if credentials else None)
+    if not actual_token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     start = perf_counter()
-    token = credentials.credentials
-
     try:
-        header = jwt.get_unverified_header(token)
+        header = jwt.get_unverified_header(actual_token)
         kid = header["kid"]
-
         keys = get_jwks()
         key = next((k for k in keys if k.get("kid") == kid), None)
-
         # Keys can rotate; retry once with a forced refresh.
         if key is None:
             keys = get_jwks(force_refresh=True)
             key = next(k for k in keys if k.get("kid") == kid)
 
         claims = jwt.decode(
-            token,
+            actual_token,
             key,
             algorithms=["RS256"],
             audience=APP_CLIENT_ID,
             issuer=COGNITO_ISSUER
         )
-
     except Exception:
-        duration_ms = round((perf_counter() - start) * 1000, 2)
-        logger.warning("token_validation_failed duration_ms=%s", duration_ms)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-    duration_ms = round((perf_counter() - start) * 1000, 2)
-    logger.info(
-        "token_validation_complete email=%s duration_ms=%s",
-        claims.get("email"),
-        duration_ms,
-    )
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
     return {
         "name": claims.get("name"),
         "email": claims.get("email"),
