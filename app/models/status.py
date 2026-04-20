@@ -1,11 +1,11 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, text
-from app.models.base import Base 
+from app.models.base import Base, SCHEMA_TABLE_ARGS 
 from sqlalchemy.orm import relationship
 
 
 class Status(Base):
     __tablename__ = "status"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     status_id = Column(Integer, primary_key=True, autoincrement=True)
     status = Column(String(10), nullable=False)

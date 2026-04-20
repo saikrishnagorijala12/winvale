@@ -12,7 +12,7 @@ from sqlalchemy import (
     Index,
 )
 from sqlalchemy.orm import relationship
-from app.models.base import Base
+from app.models.base import Base, DB_SCHEMA, schema_fk
 
 
 class ProductHistory(Base):
@@ -38,20 +38,20 @@ class ProductHistory(Base):
             "ix_product_history_client",
             "client_id",
         ),
-        {"schema": "dev"}
+        {"schema": DB_SCHEMA}
     )
 
     product_history_id = Column(Integer, primary_key=True, autoincrement=True)
 
     product_id = Column(
         Integer,
-        ForeignKey("dev.product_master.product_id", ondelete="CASCADE"),
+        ForeignKey(schema_fk("product_master", "product_id"), ondelete="CASCADE"),
         nullable=False,
     )
 
     client_id = Column(
         Integer,
-        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("client_profiles", "client_id"), ondelete="RESTRICT"),
         nullable=False,
     )
 

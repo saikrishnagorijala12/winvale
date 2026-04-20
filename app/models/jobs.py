@@ -2,30 +2,30 @@ from sqlalchemy import (
     Column, Integer,
     TIMESTAMP, ForeignKey, text
 )
-from app.models.base import Base
+from app.models.base import Base, SCHEMA_TABLE_ARGS, schema_fk
 from sqlalchemy.orm import relationship
 
 class Job(Base):
     __tablename__ = "jobs"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     job_id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(
         Integer,
-        ForeignKey("dev.users.user_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("users", "user_id"), ondelete="RESTRICT"),
         nullable=False
     )
 
     client_id = Column(
         Integer,
-        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("client_profiles", "client_id"), ondelete="RESTRICT"),
         nullable=False
     )
 
     status_id = Column(
         Integer,
-        ForeignKey("dev.status.status_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("status", "status_id"), ondelete="RESTRICT"),
         nullable=False
     )
 

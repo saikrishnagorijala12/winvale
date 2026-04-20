@@ -9,12 +9,12 @@ from sqlalchemy import (
     text
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from app.models.base import Base
+from app.models.base import Base, SCHEMA_TABLE_ARGS, schema_fk
 from sqlalchemy.orm import relationship
 
 class ClientProfile(Base):
     __tablename__ = "client_profiles"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     client_id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -33,7 +33,7 @@ class ClientProfile(Base):
 
     status_id = Column(
         Integer,
-        ForeignKey("dev.status.status_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("status", "status_id"), ondelete="RESTRICT"),
         nullable=False
     )
     negotiators = relationship("Negotiator", back_populates="client", cascade="all, delete-orphan")

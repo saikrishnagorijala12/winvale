@@ -113,6 +113,19 @@ def start_export_price_modifications(
         if status and status.get("status") == "completed":
             return {"task_id": cached_task_id}
 
+    # Verify data exists before starting background task
+    # Use .first() on ID for faster existence check than .count()
+    exists_query = db.query(ModificationAction.action_id)
+    if types:
+        exists_query = exists_query.filter(ModificationAction.action_type.in_(types))
+    if client_id:
+        exists_query = exists_query.filter(ModificationAction.client_id == client_id)
+    if job_id:
+        exists_query = exists_query.filter(ModificationAction.job_id == job_id)
+    
+    if not exists_query.first():
+        raise HTTPException(status_code=404, detail="No price modifications found for the specified filters.")
+
 
     task_id = str(uuid.uuid4())
     _set_export_status(task_id, {"status": "processing", "percent": 0, "message": "Starting export..."})
@@ -147,6 +160,16 @@ def start_export_products(
         status = _get_export_status(cached_task_id)
         if status and status.get("status") == "completed":
             return {"task_id": cached_task_id}
+
+    # Verify products exist before starting background task
+    # Use .first() on ID for faster existence check than .count()
+    product_exists = db.query(ProductMaster.product_id).filter(
+        ProductMaster.client_id == client_id,
+        ProductMaster.is_deleted.is_(False)
+    ).first()
+    
+    if not product_exists:
+        raise HTTPException(status_code=404, detail="No products found for this client to export.")
 
 
     task_id = str(uuid.uuid4())

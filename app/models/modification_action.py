@@ -2,43 +2,43 @@ from sqlalchemy import (
     Column, Integer, Numeric, Text,
     TIMESTAMP, ForeignKey, text
 )
-from app.models.base import Base
+from app.models.base import Base, SCHEMA_TABLE_ARGS, schema_fk
 from sqlalchemy.orm import relationship
 
 
 class ModificationAction(Base):
     __tablename__ = "modification_action"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     action_id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(
         Integer,
-        ForeignKey("dev.users.user_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("users", "user_id"), ondelete="RESTRICT"),
         nullable=False
     )
 
     client_id = Column(
         Integer,
-        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("client_profiles", "client_id"), ondelete="RESTRICT"),
         nullable=False
     )
 
     job_id = Column(
         Integer,
-        ForeignKey("dev.jobs.job_id", ondelete="CASCADE"),
+        ForeignKey(schema_fk("jobs", "job_id"), ondelete="CASCADE"),
         nullable=False
     )
 
     cpl_id = Column(
         Integer,
-        ForeignKey("dev.cpl_list.cpl_id", ondelete="SET NULL"),
+        ForeignKey(schema_fk("cpl_list", "cpl_id"), ondelete="SET NULL"),
         nullable=True
     )
 
     product_id = Column(
         Integer,
-        ForeignKey("dev.product_master.product_id", ondelete="SET NULL"),
+        ForeignKey(schema_fk("product_master", "product_id"), ondelete="SET NULL"),
         nullable=True
     )
 
@@ -75,4 +75,3 @@ class ModificationAction(Base):
     )
     product = relationship("ProductMaster", back_populates="modification_actions")
     cpl_item = relationship("CPLList", back_populates="modification_actions")
-

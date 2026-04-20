@@ -8,12 +8,12 @@ from sqlalchemy import (
     ForeignKey,
     text
 )
-from app.models.base import Base
+from app.models.base import Base, SCHEMA_TABLE_ARGS, schema_fk
 from sqlalchemy.orm import relationship
 
 class ClientContracts(Base):
     __tablename__ = "client_contracts"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     client_profile_id = Column(
         Integer, primary_key=True, autoincrement=True
@@ -45,7 +45,7 @@ class ClientContracts(Base):
 
     client_id = Column(
         Integer,
-        ForeignKey("dev.client_profiles.client_id",  ondelete="RESTRICT"),
+        ForeignKey(schema_fk("client_profiles", "client_id"), ondelete="RESTRICT"),
         unique=True
     )
 

@@ -12,7 +12,7 @@ from sqlalchemy import (
     Index,
 )
 from sqlalchemy.orm import relationship
-from app.models.base import Base
+from app.models.base import Base, DB_SCHEMA, schema_fk
 
 
 class ProductMaster(Base):
@@ -28,14 +28,14 @@ class ProductMaster(Base):
         ),
         Index("ix_product_master_client", "client_id"),
         Index("ix_product_master_signature", "row_signature"),
-        {"schema": "dev"}
+        {"schema": DB_SCHEMA}
     )
 
     product_id = Column(Integer, primary_key=True, autoincrement=True)
 
     client_id = Column(
         Integer,
-        ForeignKey("dev.client_profiles.client_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("client_profiles", "client_id"), ondelete="RESTRICT"),
         nullable=False,
     )
 

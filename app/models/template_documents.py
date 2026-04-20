@@ -1,9 +1,9 @@
 from sqlalchemy import Column, Integer, Text, TIMESTAMP, text
-from app.models.base import Base
+from app.models.base import Base, SCHEMA_TABLE_ARGS
 
 class TemplateDocument(Base):
     __tablename__ = "template_documents"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     template_id = Column(Integer, primary_key=True, autoincrement=True)
 

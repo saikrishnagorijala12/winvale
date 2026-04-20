@@ -8,17 +8,17 @@ from sqlalchemy import (
     text
 )
 from sqlalchemy.orm import relationship
-from app.models.base import Base
+from app.models.base import Base, SCHEMA_TABLE_ARGS, schema_fk
 
 class ProductDim(Base):
     __tablename__ = "product_dim"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     dim_id = Column(Integer, primary_key=True, autoincrement=True)
 
     product_id = Column(
         Integer,
-        ForeignKey("dev.product_master.product_id", ondelete="CASCADE"),
+        ForeignKey(schema_fk("product_master", "product_id"), ondelete="CASCADE"),
         nullable=False
     )
 

@@ -1,10 +1,10 @@
 from sqlalchemy import Column, Integer, String, Numeric, TIMESTAMP, ForeignKey, text, Boolean
-from app.models.base import Base
+from app.models.base import Base, SCHEMA_TABLE_ARGS, schema_fk
 from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = {"schema": "dev"}
+    __table_args__ = SCHEMA_TABLE_ARGS
 
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(30), nullable=False)
@@ -17,7 +17,7 @@ class User(Base):
 
     role_id = Column(
         Integer,
-        ForeignKey("dev.role.role_id", ondelete="RESTRICT"),
+        ForeignKey(schema_fk("role", "role_id"), ondelete="RESTRICT"),
         nullable=False
     )
 
